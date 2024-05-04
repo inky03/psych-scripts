@@ -1,0 +1,9 @@
+[
+	{
+		"save": "showram",
+		"name": "Debug Display",
+		"type": "bool",
+		"description": "Show RAM below FPS counter",
+		"value": false
+	}
+]

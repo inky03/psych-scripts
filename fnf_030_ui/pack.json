@@ -1,0 +1,8 @@
+{
+	"name": "FNF 0.3.0 UI",
+	"description": "(WORK IN PROGRESS) Adds the UI / interface from base game v0.3.0",
+	"restart":false,
+	"runsGlobally": true,
+	"color": [115, 94, 176],
+	"iconFramerate": 10
+}
