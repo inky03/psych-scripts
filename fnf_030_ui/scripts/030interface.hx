@@ -19,6 +19,7 @@ var memPeak = 0;
 TODO
 - improve code
 - custom pause menu?
+- shader for hold note covers
 */
 
 function onCreate() {
@@ -45,7 +46,7 @@ function onCreatePost() {
 		}
 	}
 	
-	game.healthBar.y = FlxG.height * (ClientPrefs.data.downscroll ? .1 : .9);
+	game.healthBar.y = FlxG.height * (ClientPrefs.data.downScroll ? .1 : .9);
 	game.healthBar.setColors(0xff0000, 0x66ff33);
 	
 	game.scoreTxt.fieldWidth = 0;
@@ -61,7 +62,7 @@ function onCountdownStarted() {
 	var i = 0;
 	for (strum in game.strumLineNotes.members) {
 		var player = (i >= game.opponentStrums.length);
-		strum.x = Note.swagWidth * (i % game.opponentStrums.length) + 45 + (player ? FlxG.width * .5 : 0);
+		if (!ClientPrefs.data.middleScroll) strum.x = Note.swagWidth * (i % game.opponentStrums.length) + 45 + (player ? FlxG.width * .5 : 0);
 		strum.y = (ClientPrefs.data.downScroll ? FlxG.height - 150 : 48);
 		var name = coverNames[strum.noteData];
 		var cover = new FlxSprite(strum.x, strum.y);
@@ -159,8 +160,10 @@ function goodNoteHit(note) {
 }
 
 function boom() {
-	game.camGame.zoom += .015;
-	game.camHUD.zoom += .03;
+	if (FlxG.camera.zoom < 1.35 && ClientPrefs.data.camZooms) {
+		FlxG.camera.zoom += .015;
+		game.camHUD.zoom += .03;
+	}
 }
 function onCountdownTick(_, t) {
 	if (t % 4 == 0) boom();

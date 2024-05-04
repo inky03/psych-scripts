@@ -162,7 +162,7 @@ function resultsScreen(inst) {
 		alphabet.alpha = 0.001;
 		lastAlpha = alphabet;
 	}
-	//inst.add(bgTop);
+	inst.add(bgTop);
 	
 	for (i in [resultsGf, resultsBf, soundSystem, cats, score, hiscore]) {
 		i.alpha = .0001;
