@@ -89,6 +89,9 @@ function onCreatePost() {
 	game.scoreTxt.fieldWidth = 0;
 	game.scoreTxt.setPosition(game.healthBar.x + game.healthBar.width - 190, game.healthBar.y + 30);
 	game.scoreTxt.setFormat(Paths.font('vcr.ttf'), 16, -1, 'right', FlxTextBorderStyle.OUTLINE, 0xff000000);
+	
+	game.camZooming = true;
+	return Function_Continue;
 }
 function onEvent(n) if (n == 'Change Character') game.healthBar.setColors(0xff0000, 0x66ff33);
 function onStartCountdown() {
@@ -215,10 +218,7 @@ function onCountdownTick(_, t) {
 	iconScale += 30;
 	return Function_Continue;
 }
-function onBeatHit() {
-	if (curBeat % 4 == 0) boom();
-	iconScale += 30;
-}
+function onBeatHit() iconScale += 30;
 
 function onUpdate(e) {
 	var mult:Float = 1 - Math.exp(-e * 7);
@@ -226,7 +226,6 @@ function onUpdate(e) {
 	game.camHUD.zoom += (1 - game.camHUD.zoom) * mult;
 }
 function onUpdatePost(e) {
-	game.camZooming = false;
 	for (strum in game.playerStrums.members) {
 		if (strum.animation.curAnim.finished && strum.animation.curAnim.name == 'confirm') strum.playAnim('pressed');
 	}
