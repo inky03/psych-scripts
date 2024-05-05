@@ -5,7 +5,17 @@ import flixel.util.FlxColor;
 import flixel.util.FlxStringUtil;
 import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
-var coverNames:Array = ['Purple', 'Blue', 'Green', 'Red'];
+import shaders.RGBPalette;
+
+/*
+TODO
+- improve code
+- custom pause menu?
+- shader for hold note covers (DONE!)
+- 0.3.0 score system? (make a gameplay script and move the hold stuff there)
+- 0.3.0 ratings (which are also in camera)
+*/
+var rgbs:Array = []; //rgb shader references for hold covers
 var holdCovers:Array = [];
 var heldNotes:Array = [];
 var inputs:Array = [];
@@ -15,14 +25,39 @@ var iconScale:Float = 150;
 var psychFps = null;
 var memPeak = 0;
 
-/*
-TODO
-- improve code
-- custom pause menu?
-- shader for hold note covers
-*/
+//zzzzzzzzzzzzz
+var artist_KS:String = 'Kawai Sprite';
+var artist_basset:String = 'BassetFilms';
+var artist_KSsaru:String = 'Kawai Sprite (feat. Saruky)';
+var artist_fallback:Map = [
+	//to avoid this whole fuss,
+	//just add a tag "artist" to your song .json
+	'bopeebo' => artist_KS,			'fresh' => artist_KS,		'dadbattle' => artist_KS,
+	'spookeez' => artist_KS,		'south' => artist_KS,		'monster' => artist_basset,
+	'pico' => artist_KS,			'philly nice' => artist_KS,	'blammed' => artist_KS,
+	'satin panties' => artist_KS,	'high' => artist_KS,		'milf' => artist_KS,
+	'cocoa' => artist_KS,			'eggnog' => artist_KS,		'winter horrorland' => artist_basset, //there was a mistake in 0.3.0
+	'senpai' => artist_KS,			'roses' => artist_KS,		'thorns' => artist_KS,
+	'ugh' => artist_KS,				'guns' => artist_KS,		'stress' => artist_KS,
+	'darnell' => artist_KS,			'lit up' => artist_KS,		'2hot' => artist_KS, 'blazin' => artist_KS,
+	//erect
+	'bopeebo erect' => artist_KSsaru,
+	'fresh erect' => 'Kohta Takahashi (feat. Saruky)',
+	'dadbattle erect' => artist_KS,
+	'spookeez erect' => artist_KSsaru,
+	'south erect' => artist_KSsaru,
+	'pico erect' => artist_KSsaru,
+	'philly nice erect' => artist_KSsaru,
+	'blammed erect' => artist_KS,
+	'high erect' => 'Kohta Takahashi (feat. Kawai Sprite)',
+	'senpai erect' => 'Kawaisprite', //why would you do that
+	'roses erect' => artist_KS,
+	'thorns erect' => 'Kawai Sprite (feat. Saster)',
+];
 
 function onCreate() {
+	if (PlayState.SONG.artist == null) PlayState.SONG.artist = artist_fallback.get(PlayState.SONG.song.toLowerCase()); //if this is also null nothing changes :P
+	
 	var showRam = getModSetting('showram');
 	FlxTransitionableState.skipNextTransOut = true; //custom fps display
 	psychFps = Main.fpsVar.updateText;
@@ -48,11 +83,14 @@ function onCreatePost() {
 	
 	game.healthBar.y = FlxG.height * (ClientPrefs.data.downScroll ? .1 : .9);
 	game.healthBar.setColors(0xff0000, 0x66ff33);
+	game.iconP1.y = healthBar.y - (game.iconP1.height / 2);
+	game.iconP2.y = healthBar.y - (game.iconP2.height / 2);
 	
 	game.scoreTxt.fieldWidth = 0;
 	game.scoreTxt.setPosition(game.healthBar.x + game.healthBar.width - 190, game.healthBar.y + 30);
 	game.scoreTxt.setFormat(Paths.font('vcr.ttf'), 16, -1, 'right', FlxTextBorderStyle.OUTLINE, 0xff000000);
 }
+function onEvent(n) if (n == 'Change Character') game.healthBar.setColors(0xff0000, 0x66ff33);
 function onStartCountdown() {
 	game.skipArrowStartTween = true;
 	return Function_Continue;
@@ -64,17 +102,19 @@ function onCountdownStarted() {
 		var player = (i >= game.opponentStrums.length);
 		if (!ClientPrefs.data.middleScroll) strum.x = Note.swagWidth * (i % game.opponentStrums.length) + 45 + (player ? FlxG.width * .5 : 0);
 		strum.y = (ClientPrefs.data.downScroll ? FlxG.height - 150 : 48);
-		var name = coverNames[strum.noteData];
 		var cover = new FlxSprite(strum.x, strum.y);
-		cover.frames = Paths.getSparrowAtlas('holdCover' + name);
+		cover.frames = Paths.getSparrowAtlas('holdCoverShader');
 		cover.cameras = [game.camHUD];
 		cover.antialiasing = ClientPrefs.data.antialiasing;
-		cover.animation.addByPrefix('start', 'holdCoverStart' + name, 24, false);
-		cover.animation.addByPrefix('loop', 'holdCover' + name, 24, true);
-		cover.animation.addByPrefix('end', 'holdCoverEnd' + name, 24, false);
+		cover.animation.addByPrefix('start', 'holdCoverStart', 24, false);
+		cover.animation.addByPrefix('loop', 'holdCover0', 24, true);
+		cover.animation.addByPrefix('end', 'holdCoverEnd', 24, false);
 		cover.animation.play('loop', true);
 		cover.offset.set(cover.width * .36, cover.height * .25);
 		cover.visible = false;
+		var rgb = new RGBPalette();
+		cover.shader = rgb.shader;
+		rgbs.push(rgb);
 		holdCovers.push(cover);
 		game.add(cover);
 		
@@ -118,8 +158,13 @@ function coverLogic(note) {
 	var data = note.noteData;
 	if (note.mustPress) data += game.opponentStrums.length;
 	var cover = holdCovers[data];
-	if (note.isSustainNote) {
+	var rgb = rgbs[data];
+	if (cover != null && note.isSustainNote) {
 		cover.visible = true;
+		if (rgbs != null) {
+			rgb.r = note.rgbShader.r;
+			rgb.g = note.rgbShader.g; //blue color channel is not used
+		}
 		if (!cover.visible || cover.animation.curAnim.name == 'end') cover.animation.play('start');
 		if (StringTools.endsWith(note.animation.curAnim.name, 'holdend')) {
 			cover.animation.play('end', true);

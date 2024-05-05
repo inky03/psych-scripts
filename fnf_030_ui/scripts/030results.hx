@@ -141,7 +141,9 @@ function resultsScreen(inst) {
 	resultsBar.y -= resultsBar.height;
 	resultsBar.antialiasing = ClientPrefs.data.antialiasing;
 	
-	diffText = new FlxSprite(555, 187).loadGraphic(Paths.image('resultScreen/dif' + Difficulty.getString()));
+	var diffImg = Paths.image('resultScreen/dif' + Difficulty.getString());
+	if (diffImg == null) diffImg = Paths.image('resultScreen/difUnknown');
+	diffText = new FlxSprite(555, 187).loadGraphic(diffImg);
 	diffText.antialiasing = ClientPrefs.data.antialiasing;
 	diffText.y -= diffText.height;
 	diffText.y -= 75;

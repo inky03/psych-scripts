@@ -25,6 +25,7 @@ function onEvent(name, va, vb, time) {
 				else camTween = FlxTween.tween(game.camGame, {zoom: targetZoom}, Std.parseFloat(event.v.duration), {ease: LuaUtils.getTweenEaseByString(event.v.ease)});
 		}
 	}
+	return Function_Continue;
 }
 function parseCEvent(name, va, vb, time) {
 	var event = {e: '', t: time, v: {}};
