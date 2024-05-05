@@ -2,8 +2,7 @@
 **TARGET VERSION:** 0.7.3<br>
 replicates the base fnf 0.3.0 interface in psych engine<br>
 see all todos inside the scripts<br>
-"sustains as one note" recommended<br>
-screenshots later!
+"sustains as one note" recommended<br
 
 ### features
 - results screen
@@ -13,10 +12,16 @@ screenshots later!
 and more
 
 ### screenshots
-![bad note shadows](screens/bad_notes.png)
-![hold covers on custom note colors](screens/hold_covers.png)
-![full ui](screens/ui_full.png)
-![results screen](screens/results_screen.png)
+<div class='row'>
+  <div class='column'>
+    <img src='screens/bad_notes.png' alt='bad note shadows' width='380'/>
+    <img src='screens/hold_covers.png' alt='custom hold cover colors' width='380'/>
+  </div>
+  <div class='column'>
+    <img src='screens/ui_full.png' alt='full ui' width='380'/>
+    <img src='screens/results_screen.png' alt='results screen' width='380'/>
+  </div>
+</div>
 
 ### todo
 - ratings
