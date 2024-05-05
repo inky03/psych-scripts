@@ -14,12 +14,12 @@ and more
 ### screenshots
 <div class='row'>
   <div class='column'>
-    <img src='./screens/030ui_bad_notes.png' alt='bad note shadows' width='380'/>
-    <img src='./screens/030ui_hold_covers.png' alt='custom hold cover colors' width='380'/>
+    <img src='../screens/030ui_bad_notes.png' alt='bad note shadows' width='380'/>
+    <img src='../screens/030ui_hold_covers.png' alt='custom hold cover colors' width='380'/>
   </div>
   <div class='column'>
-    <img src='./screens/030ui_full.png' alt='full ui' width='380'/>
-    <img src='./screens/030ui_results_screen.png' alt='results screen' width='380'/>
+    <img src='../screens/030ui_full.png' alt='full ui' width='380'/>
+    <img src='../screens/030ui_results_screen.png' alt='results screen' width='380'/>
   </div>
 </div>
 
