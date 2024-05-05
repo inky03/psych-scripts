@@ -12,6 +12,12 @@ screenshots later!
 - a shoddy chart/event converter,
 and more
 
+### screenshots
+![bad note shadows](screens/bad_notes.png)
+![hold covers on custom note colors](screens/hold_covers.png)
+![full ui](screens/ui_full.png)
+![results screen](screens/results_screen.png)
+
 ### todo
 - ratings
 - code cleanup : )
