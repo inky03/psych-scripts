@@ -40,5 +40,12 @@
 		"type": "bool",
 		"description": "Break combo when hitting a Bad or a Shit\n(enabled since FNF 0.3.0)",
 		"value": true
+	},
+	{
+		"save": "adaptivecolors",
+		"name": "Accurate Note Colors",
+		"type": "bool",
+		"description": "Color notesplashes and pressed notes to be closer to their original (pre note RGB), more vibrant colors. Supports custom colors",
+		"value": true
 	}
 ]
