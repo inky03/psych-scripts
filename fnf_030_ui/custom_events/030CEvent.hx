@@ -19,10 +19,11 @@ function onEvent(name, va, vb, time) {
 				game.moveCamera(cameraFocus == 1);
 			case 'ZoomCamera':
 				var targetZoom = Std.parseFloat(event.v.zoom);
-				game.defaultCamZoom = targetZoom;
 				if (camTween != null) camTween.cancel();
-				if (event.v.ease == 'INSTANT') game.camGame.zoom = targetZoom;
-				else camTween = FlxTween.tween(game.camGame, {zoom: targetZoom}, Std.parseFloat(event.v.duration), {ease: LuaUtils.getTweenEaseByString(event.v.ease)});
+				if (event.v.ease == 'INSTANT') game.defaultCamZoom = targetZoom;
+				else camTween = FlxTween.num(game.defaultCamZoom, targetZoom, Std.parseFloat(event.v.duration), {ease: LuaUtils.getTweenEaseByString(event.v.ease)}, (v) -> {
+					game.defaultCamZoom = v;
+				});
 		}
 	}
 	return Function_Continue;

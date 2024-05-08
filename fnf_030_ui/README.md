@@ -1,10 +1,10 @@
-## FNF 0.3.0 UI
+## WEEKEND INTERFACE
 **TARGET VERSION:** 0.7.3<br>
-replicates the base fnf 0.3.0 interface in psych engine<br>
+replicates the interface of the base game's weekend update in psych engine<br>
 see all todos inside the scripts<br>
-"sustains as one note" recommended<br>
 
 ### features
+- **[NEW]** scoring system
 - results screen
 - hold cover effects (rgb note shader supported)
 - note shadows on bad/miss (and combo break)
@@ -24,11 +24,11 @@ and more
 </div>
 
 ### todo
-- ratings
-- code cleanup : )
-- new score system
-- new pause menu?
+- [x] ratings
+- [ ] code cleanup :) **(IN PROGRESS)**
+- [ ] new score system **(IN PROGRESS)**
+- [ ] new pause menu?
 
 ### credits
-unknown difficulty (results screen) - emily(me)<br>
-assets property of funkin crew
+assets property of funkin crew<br>
+code and additional assets/art by emily/superinky(me)

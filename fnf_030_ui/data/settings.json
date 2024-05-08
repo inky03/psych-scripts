@@ -5,5 +5,40 @@
 		"type": "bool",
 		"description": "Show RAM below FPS counter",
 		"value": false
+	},
+	{
+		"save": "newscoring",
+		"name": "New Scoring System",
+		"type": "bool",
+		"description": "<<< EXPERIMENTAL! >>>\nAdd the new scoring system in gameplay",
+		"value": true
+	},
+	{
+		"save": "miss",
+		"name": "Miss Judgement",
+		"type": "bool",
+		"description": "Show miss judgements on combo break (upcoming feature?)",
+		"value": false
+	},
+	{
+		"save": "pixeleffects",
+		"name": "Note Effects in Pixel UI",
+		"type": "bool",
+		"description": "Show the notesplashes and hold cover effects in pixel UI (hidden since FNF 0.3.0)",
+		"value": false
+	},
+	{
+		"save": "missbutlikeactually",
+		"name": "Miss on Ghost Tap",
+		"type": "bool",
+		"description": "Break combo and cause a miss on ghost tap (disabled since FNF 0.3.0)",
+		"value": false
+	},
+	{
+		"save": "badcombobreak",
+		"name": "Combo Break on Bad/Shit Hits",
+		"type": "bool",
+		"description": "Break combo when hitting a Bad or a Shit\n(enabled since FNF 0.3.0)",
+		"value": true
 	}
 ]
