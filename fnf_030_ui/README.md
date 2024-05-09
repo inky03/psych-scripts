@@ -4,11 +4,12 @@ replicates the interface of the base game's weekend update in psych engine<br>
 see all todos inside the scripts<br>
 
 ### features
-- **[NEW]** scoring system
+- **[NEW]** combo milestones
+- scoring system
 - results screen
 - hold cover effects (rgb note shader supported)
 - note shadows on bad/miss (and combo break)
-- a shoddy chart/event converter,
+- a shoddy chart/event converter,<br>
 and more
 
 ### screenshots
