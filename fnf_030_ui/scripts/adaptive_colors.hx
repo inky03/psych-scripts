@@ -5,6 +5,7 @@ var adaptive:Bool = false;
 function onCreatePost() {
 	adaptive = getModSetting('adaptivecolors'); //doesnt support pixel stages
 	if (!adaptive) return Function_Continue;
+	
 	var tex = game.playerStrums.members[0].texture + '_n';
 	if (Paths.image(tex) != null && !PlayState.isPixelStage) { 
 		shadeNotes = true;
@@ -65,12 +66,12 @@ function splashColors(col) {
 
 function grayColors(col) {
 	var rgb = col; //fill
-	rgb.red = clamp(rgb.red - 40 - (rgb.blue - rgb.red) * .1 + Math.abs(rgb.red - rgb.blue) * .1, 0, 255);
+	rgb.red = clamp(rgb.red - 40 - (rgb.blue - rgb.red) * .1 + Math.abs(rgb.red - rgb.blue) * .1 + Math.min(rgb.red - Math.pow(rgb.blue / 255, 2) * 255 * 3 + rgb.green * .4, 0) * .1, 0, 255);
 	rgb.green = clamp(rgb.green + (rgb.red + rgb.blue) * .15 + (rgb.green - rgb.blue) * .3, 0, 255);
 	rgb.blue = clamp(rgb.blue + (rgb.green - rgb.blue) * .04 + (rgb.red + rgb.blue) * .25 + Math.abs(rgb.red - (rgb.green - rgb.blue)) * .2 - (rgb.red - rgb.blue) * .3, 0, 255);
 	var hsv = rgb2hsv(rgb);
-	hsv.saturation = clamp(hsv.saturation + ((rgb.b + rgb.g - (rgb.b - rgb.r)) * .05 / 255) - (1 - hsv.brightness) * .1, 0, 1) * .52;
-	hsv.brightness = clamp(hsv.brightness / 255 - ((rgb.b + rgb.g - (rgb.b - rgb.r)) * .04 / 255) + (1 - hsv.brightness / 255) * .08, 0, 1) * 255 * .81;
+	hsv.saturation = clamp(hsv.saturation + (rgb.b + rgb.g - (rgb.b - rgb.r)) * .05 - (1 - hsv.brightness / 255) * .1, 0, 1) * .52;
+	hsv.brightness = clamp(hsv.brightness / 255 - ((rgb.b + rgb.g - (rgb.b - rgb.r)) * .04) + (1 - hsv.brightness / 255) * .08, 0, 1) * 255 * .75;
 	var fill = rgbfloat(hsv2rgb(hsv));
 	
 	rgb = fill; //dark fill

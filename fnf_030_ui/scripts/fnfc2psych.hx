@@ -6,10 +6,6 @@ var loaded:Bool = false;
 var save:Int = 0;
 /*
 SAVING MODES:
-0 - dont save (only play chart)
-1 - save this difficulty
-2 - save ALL difficulties
-every chart will be exported as songname-difficultyBACK.json
 DOESNT WORK RIGHT NOW! keep it at 0 unless you want slightly slower load 
 */
 
@@ -17,22 +13,49 @@ DOESNT WORK RIGHT NOW! keep it at 0 unless you want slightly slower load
 TODO
 - implement BPM changes (theyre ms based now)
 - implement time sig changes
-- save mode (you can just use other tools for that though, this is really shoddy)
+- save mode (you can just use other tools for that though (or you know, save it with the chart editor), this is really shoddy)
 */
 
+var generate:Bool = true;
 var startingBPM:Float = 100;
 
+function onCreatePost() {
+	if (!generate) return Function_Continue;
+	
+	var sectionBeats:Int = 4;
+	var crochet:Float = BPMms(PlayState.SONG.bpm);
+	var beats:Int = 0;
+	var time:Int = 0;
+	for (section in PlayState.SONG.notes) {
+		sectionBeats = section.sectionBeats;
+		if (sectionBeats == null) sectionBeats = 4;
+		if (section.changeBPM) crochet = BPMms(section.bpm);
+		beats += sectionBeats;
+		time += crochet * sectionBeats;
+	}
+	while (time < game.inst.length) { //generate filler sections to reach song length completely
+		var sec = blankSection();
+		sec.sectionBeats = sectionBeats;
+		PlayState.SONG.notes.push(sec);
+		time += crochet * sectionBeats;
+	}
+	return Function_Continue;
+}
 function onCreate() {
+	//only generate if chart is blank (so the chart is not overwritten when editing in the chart editor!)
+	for (section in PlayState.SONG.notes) generate = generate && (section.sectionNotes.length <= 0);
+	if (!generate) return Function_Continue;
+	
 	var diff = Difficulty.getString().toLowerCase();
 	var path_chart = Paths.modsJson(game.songName + '/' + game.songName + '-chart');
 	var path_metadata = Paths.modsJson(game.songName + '/' + game.songName + '-metadata');
 	
+	var timeChanges:Array = [];
 	if (FileSystem.exists(path_metadata)) {
 		//debugPrint('LOAD METADATA');
 		var file = File.getContent(path_metadata);
 		var metadata = Json.parse(file);
 		
-		var timeChanges = [];
 		for (i in 0 ... metadata.timeChanges.length) {
 			var change = metadata.timeChanges[i];
 			var data = {
@@ -40,11 +63,11 @@ function onCreate() {
 			};
 			if (i > 0) {
 				//debugPrint('bpm change found');
-				timeChanges.push(data.bpm);
+				timeChanges.push({newBpm: data.bpm});
 			} else {
 				startingBPM = data.bpm;
 				PlayState.SONG.bpm = startingBPM;
-				Conductor.crochet = 60000 / startingBPM;
+				Conductor.crochet = BPMms(startingBPM);
 			}
 		}
 		PlayState.SONG.artist = metadata.artist;
@@ -65,26 +88,9 @@ function onCreate() {
 			else diffs = [diffs[Math.max(PlayState.storyDifficulty, diffs.length - 1)]];
 		}
 		
-		var finalChart:Array = [];
-		for (diffic in diffs) {
-			var fnfNotes = [];
-			var notes = Reflect.field(chart.notes, diffic);
-			var oldNote = null;
-			for (note in notes) {
-				var onote = [note.t, note.d, note.l];
-				if (note.k != null) onote.push(note.k);
-				fnfNotes.push(onote);
-				/*if (!spawn) continue;
-				var onote = new Note(note.t, note.d % 4, oldNote);
-				onote.sustainLength = note.l;
-				onote.mustPress = (note.d < 4);
-				var oldNote = onote;
-				game.unspawnNotes.push(onote);*/
-			}
-			if (diffic == diff) finalChart = fnfNotes;
-			PlayState.SONG.notes[0].sectionNotes = fnfNotes;
-		}
+		var focus:Array = [];
 		for (event in chart.events) {
+			if (event.e == 'FocusCamera') focus.push({time: event.t, focus: event.v.char == 0});
 			var values = event.v;
 			var vala = event.e;
 			var valb = event.e;
@@ -97,13 +103,78 @@ function onCreate() {
 			var fin:Array = [event.t, [['030CEvent', vala, valb]]];
 			game.makeEvent(fin);
 		}
-		//debugPrint(PlayState.SONG.notes.length + ' sections');
-		PlayState.SONG.notes[0].sectionNotes = finalChart;
+		focus.reverse();
+		
+		var section:Int = 0;
+		var sectionBeats:Int = 4;
+		var crochet:Float = BPMms(startingBPM);
+		var lolCrochet:Float = 0;
+		var addCrochet:Float = crochet * sectionBeats;
+		PlayState.SONG.notes = [];
+		for (diffic in diffs) {
+			var fnfNotes:Array = [];
+			var notes = Reflect.field(chart.notes, diffic);
+			var oldNote = null;
+			for (note in notes) {
+				var onote = {t: note.t, d: note.d, l: note.l, k: note.k};
+				var tt:Float = note.t + 2; //account for time Fluctuations
+				if (tt > addCrochet) {
+					var sec = null;
+					while (tt > addCrochet) {
+						sec = blankSection();
+						PlayState.SONG.notes.push(sec);
+						
+						var hit:Bool = getMustHit(lolCrochet, focus);
+						sec.mustHitSection = hit;
+						
+						lolCrochet += crochet * sectionBeats;
+						addCrochet += crochet * sectionBeats;
+					}
+					if (sec != null) sec.sectionNotes = notesFromObjects(fnfNotes, !sec.mustHitSection);
+					fnfNotes = [];
+					section ++;
+				}
+				fnfNotes.push(onote);
+			}
+			if (fnfNotes.length > 0) {
+				var hit:Bool = getMustHit(lolCrochet, focus);
+				var sec = blankSection();
+				sec.mustHitSection = hit;
+				sec.sectionNotes = notesFromObjects(fnfNotes, !sec.mustHitSection);
+				PlayState.SONG.notes.push(sec);
+			}
+			//if (diffic == diff) finalChart = fnfNotes;
+			//debugPrint(PlayState.SONG.notes[section].sectionNotes == null);
+			//PlayState.SONG.notes[section].sectionNotes = fnfNotes;
+		}
 		
 		var speed = Reflect.field(chart.scrollSpeed, diff);
 		PlayState.SONG.speed = speed;
 		loaded = true;
-		//debugPrint(data.notes);
 	}
+	
 	return Function_Continue;
 }
+
+function notesFromObjects(objects, shift) { //{t: time, d: data, l:length} -> [time, data, length]
+	var realNotes:Array = [];
+	for (n in objects) {
+		if (shift) n.d = (n.d + 4) % 8;
+		var dat:Array = [n.t, n.d, n.l];
+		if (n.k != null) dat.push(n.k);
+		realNotes.push(dat);
+	}
+	return realNotes;
+}
+function getMustHit(time, focusArray) {
+	for (f in focusArray) if ((time + 10) >= f.time) return f.focus;
+	return false;
+}
+function blankSection() {
+	return {
+		sectionBeats: 4,
+		mustHitSection: true,
+		sectionNotes: [],
+	};
+}
+function BPMms(BPM) return Math.max(60000 / BPM, 1); //cant be THAT low

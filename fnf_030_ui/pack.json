@@ -1,6 +1,6 @@
 {
 	"name": "WEEKEND INTERFACE",
-	"description": "                  < WORK IN PROGRESS >\nPort of the interface from the base game's Weekend update\n\nCREDITS:\n+ Assets property of Funkin Crew\n+ Code, additional art by emily (superinky)",
+	"description": "                <<< WORK IN PROGRESS >>>\nPort of the interface from the base game's Weekend update\n(Sustains as One Note recommended!)\n\nCREDITS:\n+ Assets property of Funkin Crew\n+ Code, additional art by emily (superinky)",
 	"restart":false,
 	"runsGlobally": true,
 	"color": [115, 94, 176]

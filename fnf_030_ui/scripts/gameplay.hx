@@ -15,7 +15,7 @@ var c_RATING_HEALTH:Map = [
 ];
 var c_MISS_PENALTY:Float = getHealth(4);
 var c_GHOST_MISS_PENALTY:Float = getHealth(2);
-var c_HOLD_DROP_PENALTY:Float = getHealth(5);
+var c_HOLD_DROP_PENALTY:Float = getHealth(0);
 //var c_MINE_PENALTY:Float = getHealth(15);
 
 var holdInfo:Array = [];
@@ -33,6 +33,9 @@ function onCreatePost() {
 	ghost = ClientPrefs.data.ghostTapping;
 	ClientPrefs.data.ghostTapping = true;
 	for (strum in game.strumLineNotes.members) holdInfo[strum.noteData] = {start: -1, end: 0, p: 0, g: 0};
+	var i = game.unspawnNotes.length;
+	var strum = game.playerStrums.members[0];
+	game.unspawnNotes.sort(PlayState.sortByTime);
 	return Function_Continue;
 }
 function onDestroy() ClientPrefs.data.ghostTapping = ghost;

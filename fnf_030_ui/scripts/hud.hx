@@ -4,6 +4,7 @@ import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
 import flixel.addons.transition.FlxTransitionableState;
 import flixel.util.FlxStringUtil;
+import flixel.group.FlxTypedSpriteGroup;
 
 var lerpHealth:Float = 1;
 var iconScale:Float = 150;
@@ -12,6 +13,7 @@ var combo:Int = 0;
 var missRating:Bool = false;
 var noteEffects:Bool = false;
 var skipTween:Bool = false;
+var comboGroup:FlxTypedSpriteGroup<FlxSprite>;
 
 var psychFps = null;
 var memPeak = 0;
@@ -20,6 +22,8 @@ var memPeak = 0;
 var c_PIXELARTSCALE:Float = 6;
 
 function onCreate() {
+	comboGroup = new FlxTypedSpriteGroup();
+	game.add(comboGroup);
 	missRating = getModSetting('miss');
 	noteEffects = getModSetting('pixeleffects') || !PlayState.isPixelStage;
 	var showRam:Bool = getModSetting('showram');
@@ -35,6 +39,8 @@ function onCreate() {
 
 function onCreatePost() {
 	for (note in game.unspawnNotes) if (!noteEffects) note.noteSplashData.disabled = true;
+	
+	comboGroup.cameras = [game.camHUD];
 	
 	game.healthBar.y = FlxG.height * (ClientPrefs.data.downScroll ? .1 : .9);
 	game.healthBar.setColors(0xff0000, 0x66ff33);
@@ -67,7 +73,7 @@ function onCountdownStarted() {
 		if (!ClientPrefs.data.middleScroll) strum.x = Note.swagWidth * (i % game.opponentStrums.length) + 45 + (player ? FlxG.width * .5 : 0);
 		strum.y = (ClientPrefs.data.downScroll ? FlxG.height - 150 : 48);
 		
-		if (!skipTween) {
+		if (!skipTween && PlayState.startOnTime <= 0 && (player || ClientPrefs.data.opponentStrums)) {
 			strum.y -= m * 10;
 			strum.alpha = 0;
 			FlxTween.tween(strum, {y: strum.y + m * 10, alpha: ((ClientPrefs.data.middleScroll && i < game.opponentStrums.length) ? 0.35 : 1)}, 1, {ease: FlxEase.circOut, startDelay: 0.5 + (0.2 * (i % game.opponentStrums.length))});
@@ -114,9 +120,7 @@ function onUpdate(e) {
 }
 function onUpdatePost(e) {
 	game.camZooming = false;
-	for (strum in game.playerStrums.members) {
-		if (strum.animation.curAnim.finished && strum.animation.curAnim.name == 'confirm') strum.playAnim('pressed');
-	}
+	
 	var mult:Float = 1 - Math.exp(-e * 30);
 	lerpHealth += (game.health - lerpHealth) * mult;
 	game.healthBar.percent = lerpHealth * 50;
@@ -139,21 +143,32 @@ function goodNoteHit(note) {
 	return Function_Continue;
 }
 function noteMissPress(d) {
-	if (missRating) displayRating('miss');
+	var wipe:Bool = false;
+	if (missRating) wipe = displayRating('miss');
 	if (combo >= 10) displayCombo(0);
+	if (wipe && !ClientPrefs.data.comboStacking) wipeRatings();
 	combo = 0;
 	return Function_Continue;
 }
 function noteMiss(note) {
-	if (missRating && !note.isSustainNote) displayRating('miss');
+	var wipe:Bool = false;
+	if (missRating && !note.isSustainNote) wipe = displayRating('miss');
 	if (combo >= 10) displayCombo(0);
+	if (wipe && !ClientPrefs.data.comboStacking) wipeRatings();
 	combo = 0;
 	return Function_Continue;
 }
 function popUpScore(rating) {
 	if (ClientPrefs.data.hideHud) return;
+	if (!ClientPrefs.data.comboStacking) wipeRatings();
 	displayRating(rating);
 	if (combo >= 10 || combo == 0) displayCombo(combo);
+}
+function wipeRatings() {
+	for (spr in comboGroup) {
+		spr.destroy();
+		comboGroup.remove(spr);
+	}
 }
 function displayRating(rating) {
 	if (!game.showRating) return;
@@ -166,8 +181,7 @@ function displayRating(rating) {
 	rating.acceleration.y = 550;
 	rating.velocity.x = -FlxG.random.int(0, 10);
 	rating.velocity.y = -FlxG.random.int(140, 175);
-	rating.cameras = [game.camHUD];
-	game.add(rating);
+	comboGroup.add(rating);
 	if (isPixel) rating.setGraphicSize(rating.width * c_PIXELARTSCALE * .7);
 	else rating.setGraphicSize(rating.width * .65);
 	rating.updateHitbox();
@@ -175,9 +189,10 @@ function displayRating(rating) {
 	rating.y -= rating.height * .5;
 	rating.antialiasing = isPixel ? false : ClientPrefs.data.antialiasing;
 	FlxTween.tween(rating, {alpha: 0}, 0.2, {onComplete: () -> {
-		game.remove(rating, true);
+		comboGroup.remove(rating, true);
 		rating.destroy();
 	}, startDelay: Conductor.crochet * .001});
+	return true;
 }
 function displayCombo(combo) {
 	if (!game.showComboNum) return;
@@ -192,14 +207,13 @@ function displayCombo(combo) {
 		comboSpr.acceleration.y = 600;
 		comboSpr.velocity.x = FlxG.random.int(1, 10);
 		comboSpr.velocity.y = -150;
-		comboSpr.cameras = [game.camHUD];
-		game.add(comboSpr);
+		comboGroup.add(comboSpr);
 		if (isPixel) comboSpr.setGraphicSize(comboSpr.width * c_PIXELARTSCALE * .7);
 		else comboSpr.setGraphicSize(comboSpr.width * .65);
 		comboSpr.updateHitbox();
 		comboSpr.antialiasing = isPixel ? false : ClientPrefs.data.antialiasing;
 		FlxTween.tween(comboSpr, {alpha: 0}, 0.2, {onComplete: () -> {
-			game.remove(comboSpr, true);
+			comboGroup.remove(comboSpr, true);
 			comboSpr.destroy();
 		}, startDelay: Conductor.crochet * .001});
 	}
@@ -221,12 +235,11 @@ function displayCombo(combo) {
 		numScore.acceleration.y = FlxG.random.int(250, 300);
 		numScore.velocity.x = FlxG.random.float(-5, 5);
 		numScore.velocity.y = -FlxG.random.int(130, 150);
-		numScore.cameras = [game.camHUD];
 		FlxTween.tween(numScore, {alpha: 0}, 0.2, {onComplete: () -> {
-			game.remove(numScore, true);
+			comboGroup.remove(numScore, true);
 			numScore.destroy();
 		}, startDelay: Conductor.crochet * .002});
-		game.add(numScore);
+		comboGroup.add(numScore);
 		daLoop ++;
 	}
 	return combo;
