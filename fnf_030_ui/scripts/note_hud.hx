@@ -58,8 +58,6 @@ function onCreatePost() {
 	return Function_Continue;
 }
 
-function onUpdateScore() game.scoreTxt.text = 'Score: ' + game.songScore;
-
 function onKeyRelease(k) {
 	var cover = holdCovers[k + game.opponentStrums.length].cover;
 	if (cover != null && cover.animation.curAnim.name != 'end') cover.visible = false;
@@ -151,7 +149,7 @@ function goodNoteHit(note) {
 		var strum = game.playerStrums.members[note.noteData];
 		if (strum != null) {
 			removeCovers.push({strum: strum, hold: note.sustainLength > 0});
-			strum.resetAnim = (note.sustainLength > 0 ? (note.sustainLength / 1000 + 1) : 0);
+			strum.resetAnim = (note.sustainLength > 0 ? (note.sustainLength + 1000) : (game.cpuControlled ? Conductor.crochet : 0)) / 1000;
 		}
 	}
 	return Function_Continue;

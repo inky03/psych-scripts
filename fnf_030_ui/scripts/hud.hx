@@ -37,6 +37,8 @@ function onCreate() {
 	return Function_Continue;
 }
 
+function onUpdateScore() game.scoreTxt.text = (game.cpuControlled ? 'Bot Play Enabled' : 'Score: ' + game.songScore);
+
 function onCreatePost() {
 	for (note in game.unspawnNotes) if (!noteEffects) note.noteSplashData.disabled = true;
 	
@@ -50,6 +52,7 @@ function onCreatePost() {
 	game.scoreTxt.fieldWidth = 0;
 	game.scoreTxt.setPosition(game.healthBar.x + game.healthBar.width - 190, game.healthBar.y + 30);
 	game.scoreTxt.setFormat(Paths.font('vcr.ttf'), 16, -1, 'right', FlxTextBorderStyle.OUTLINE, 0xff000000);
+	game.botplayTxt.kill();
 	
 	return Function_Continue;
 }
