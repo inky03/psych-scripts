@@ -15,7 +15,7 @@ var coverSplashGroup:FlxTypedSpriteGroup<FlxSprite>;
 var prevFrame:Int = 0;
 var rgbs:Array = []; //rgb shader references for hold covers
 var holdCovers:Array = [];
-var removeCovers:Array = [];
+var playHits:Array = [];
 var holdsData:Array = [];
 
 function onCreatePost() {
@@ -93,6 +93,7 @@ function coverLogic(note, end) {
 					cover.visible = false;
 					if (strum != null && strum.resetAnim <= 0) strum.playAnim('static');
 				} else if (strum != null) strum.playAnim('pressed');
+				strum.resetAnim = 0;
 				if (cover.visible) {
 					cover.visible = false;
 					var coverSplash:FlxSprite = new FlxSprite(); //coverSplashGroup.recycle(FlxSprite); figure out why this doesnt work correctly later
@@ -143,15 +144,15 @@ function makeGhostNote(note) {
 	ghost.rgbShader.b = int_desat(ghost.rgbShader.b, 0.5);
 }
 function goodNoteHit(note) {
-	coverLogic(note, false);
-	if (note.isSustainNote) game.boyfriend.holdTimer = 0;
-	else {
-		var strum = game.playerStrums.members[note.noteData];
-		if (strum != null) {
-			removeCovers.push({strum: strum, hold: note.sustainLength > 0});
-			strum.resetAnim = (note.sustainLength > 0 ? (note.sustainLength + 1000) : (game.cpuControlled ? Conductor.crochet : 0)) / 1000;
-		}
+	var strum = game.playerStrums.members[note.noteData];
+	if (note.isSustainNote) {
+		game.boyfriend.holdTimer = 0;
+		if (strum != null) strum.resetAnim = Conductor.crochet / 1000;
+	} else if (strum != null) {
+		playHits.push({strum: strum, hold: note.sustainLength > 0});
+		strum.resetAnim = ((note.sustainLength > 0 || game.cpuControlled) ? Conductor.crochet : 0) / 1000;
 	}
+	coverLogic(note, false);
 	return Function_Continue;
 }
 function onUpdate() {
@@ -164,8 +165,8 @@ function onUpdate() {
 	return Function_Continue;
 }
 function onUpdatePost(e) {
-	while (removeCovers.length > 0) { //psych engine is a meanie
-		var i = removeCovers.shift();
+	while (playHits.length > 0) { //psych engine is a meanie
+		var i = playHits.shift();
 		var strum = i.strum;
 		if (strum == null) continue;
 		strum.playAnim('hit', true);
@@ -186,9 +187,12 @@ function onUpdatePost(e) {
 		}
 		if (instance.animation.curAnim.finished) instance.animation.play('loop', true);
 	}
-	var i = 0;
 	for (strum in game.playerStrums.members) {
-		if (strum.animation.curAnim.finished && strum.animation.curAnim.name == 'confirm' && strum.resetAnim <= 0) strum.playAnim('pressed');
+		if (strum.animation.curAnim.finished && strum.animation.curAnim.name == 'hit' && strum.resetAnim <= 0) {
+			strum.animation.finishCallback = null;
+			strum.playAnim('pressed');
+			strum.resetAnim = 0;
+		}
 	}
 	return Function_Continue;
 }

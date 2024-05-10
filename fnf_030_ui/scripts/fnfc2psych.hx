@@ -1,3 +1,4 @@
+import objects.BGSprite;
 import backend.Difficulty;
 import objects.Note;
 import tjson.TJSON as Json;
@@ -80,6 +81,10 @@ function onCreate() {
 		
 		var playData = metadata.playData;
 		if (playData != null) {
+			if (playData.stage != null) {
+				PlayState.SONG.stage = playData.stage;
+				for (element in game.members) if (Std.isOfType(element, BGSprite)) element.kill();
+			}
 			var chars = playData.characters;
 			if (chars != null) {
 				if (chars.player != null) PlayState.SONG.player1 = overrideChara(chars.player);
