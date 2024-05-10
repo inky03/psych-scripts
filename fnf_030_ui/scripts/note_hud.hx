@@ -1,5 +1,6 @@
 import flixel.util.FlxColor;
 import objects.PixelSplashShader;
+import flixel.group.FlxTypedSpriteGroup;
 
 /*
 TODO
@@ -9,11 +10,22 @@ TODO
 - 0.3.0 score system? (make a gameplay script and move the hold stuff there)
 - 0.3.0 ratings (which are also in camera)
 */
+var coverGroup:FlxTypedSpriteGroup<FlxSprite>;
+var coverSplashGroup:FlxTypedSpriteGroup<FlxSprite>;
 var prevFrame:Int = 0;
 var rgbs:Array = []; //rgb shader references for hold covers
 var holdCovers:Array = [];
+var removeCovers:Array = [];
+var holdsData:Array = [];
 
 function onCreatePost() {
+	coverGroup = new FlxTypedSpriteGroup();
+	coverGroup.cameras = [game.camHUD];
+	game.add(coverGroup);
+	coverSplashGroup = new FlxTypedSpriteGroup();
+	coverSplashGroup.cameras = [game.camHUD];
+	game.add(coverSplashGroup);
+	
 	for (note in game.unspawnNotes) {
 		if (note.isSustainNote) {
 			note.multAlpha = 1;
@@ -23,13 +35,13 @@ function onCreatePost() {
 	var pixel:Float = (PlayState.isPixelStage ? PlayState.daPixelZoom : 1);
 	var i = 0;
 	for (strum in game.strumLineNotes.members) {
+		strum.animation.rename('confirm', 'hit');
+		
 		var cover = new FlxSprite();
 		cover.frames = Paths.getSparrowAtlas('holdCoverShader');
-		cover.cameras = [game.camHUD];
 		cover.antialiasing = ClientPrefs.data.antialiasing;
 		cover.animation.addByPrefix('start', 'holdCoverStart', 24, false);
 		cover.animation.addByPrefix('loop', 'holdCover0', 24, true);
-		cover.animation.addByPrefix('end', 'holdCoverEnd', 24, false);
 		cover.animation.play('loop', true);
 		cover.offset.set(106, 100);
 		cover.visible = false;
@@ -39,7 +51,7 @@ function onCreatePost() {
 		cover.shader = rgb;
 		rgbs.push(rgb);
 		holdCovers.push({cover: cover, strum: strum});
-		game.add(cover);
+		coverSplashGroup.add(cover);
 		
 		i ++;
 	}
@@ -64,7 +76,7 @@ function popCover(note, strum, cover, rgb) {
 	}
 	cover.animation.play('start', true);
 }
-function coverLogic(note) {
+function coverLogic(note, end) {
 	if (note.noteSplashData.disabled) return;
 	
 	var data = note.noteData;
@@ -78,12 +90,25 @@ function coverLogic(note) {
 		if (note.isSustainNote) {
 			var strum = (note.mustPress ? game.playerStrums.members[note.noteData] : game.opponentStrums.members[note.noteData]);
 			if (!cover.visible || cover.animation.curAnim.name == 'end') popCover(note, strum, cover, rgb);
-			if (StringTools.endsWith(note.animation.curAnim.name, 'holdend')) {
-				cover.animation.play('end', true);
+			if ((end || Conductor.songPosition >= note.strumTime + Conductor.stepCrochet) && StringTools.endsWith(note.animation.curAnim.name, 'holdend')) {
 				if (!note.mustPress) {
 					cover.visible = false;
-					if (strum != null) strum.playAnim('static');
+					if (strum != null && strum.resetAnim <= 0) strum.playAnim('static');
 				} else if (strum != null) strum.playAnim('pressed');
+				if (cover.visible) {
+					cover.visible = false;
+					var coverSplash:FlxSprite = new FlxSprite(); //coverSplashGroup.recycle(FlxSprite); figure out why this doesnt work correctly later
+					coverSplash.frames = Paths.getSparrowAtlas('holdCoverShader');
+					coverSplash.setPosition(cover.x, cover.y);
+					coverSplash.offset.x = cover.offset.x;
+					coverSplash.offset.y = cover.offset.y;
+					coverSplash.antialiasing = ClientPrefs.data.antialiasing;
+					coverSplash.animation.addByPrefix('end', 'holdCoverEnd', 24, false);
+					coverSplash.animation.play('end', true);
+					coverSplash.shader = cover.shader;
+					coverSplash.animation.finishCallback = () -> coverSplash.destroy();
+					coverSplashGroup.add(coverSplash);
+				}
 			}
 		} else if (note.sustainLength > 0) {
 			var strum = (note.mustPress ? game.playerStrums.members[note.noteData] : game.opponentStrums.members[note.noteData]);
@@ -92,10 +117,21 @@ function coverLogic(note) {
 	}
 }
 function opponentNoteHit(note) {
-	coverLogic(note);
+	coverLogic(note, false);
 	if (note.isSustainNote) game.dad.holdTimer = 0;
-	var strum = game.opponentStrums.members[note.noteData];
-	if (strum != null) strum.resetAnim = (note.sustainLength > 0 ? note.sustainLength : Conductor.crochet) / 1000;
+	else {
+		var strum = game.opponentStrums.members[note.noteData];
+		if (strum != null) {
+			strum.playAnim('hit', true);
+			strum.resetAnim = (note.sustainLength > 0 ? note.sustainLength : Conductor.crochet) / 1000;
+			if (note.sustainLength > 0) {
+				strum.animation.finishCallback = () -> {
+					strum.playAnim('hit', true);
+					strum.animation.finishCallback = null;
+				}
+			}
+		}
+	}
 }
 function makeGhostNote(note) {
 	var ghost = new Note(note.strumTime, note.noteData, null, note.isSustainNote);
@@ -109,32 +145,52 @@ function makeGhostNote(note) {
 	ghost.rgbShader.b = int_desat(ghost.rgbShader.b, 0.5);
 }
 function goodNoteHit(note) {
-	coverLogic(note);
+	coverLogic(note, false);
 	if (note.isSustainNote) game.boyfriend.holdTimer = 0;
 	else {
 		var strum = game.playerStrums.members[note.noteData];
-		if (strum != null) strum.resetAnim = (note.sustainLength > 0 ? note.sustainLength / 1000 : 0);
+		if (strum != null) {
+			removeCovers.push({strum: strum, hold: note.sustainLength > 0});
+			strum.resetAnim = (note.sustainLength > 0 ? (note.sustainLength / 1000 + 1) : 0);
+		}
+	}
+	return Function_Continue;
+}
+function onUpdate() {
+	for (n in game.notes) {
+		if (n.clipRect != null && n.clipRect.height <= 0 && !n.extraData.get('consumed') && StringTools.endsWith(n.animation.curAnim.name, 'end')) {
+			n.extraData.set('consumed', true); //prevent it running more than once
+			coverLogic(n, true);
+		}
 	}
 	return Function_Continue;
 }
 function onUpdatePost(e) {
+	while (removeCovers.length > 0) { //psych engine is a meanie
+		var i = removeCovers.shift();
+		var strum = i.strum;
+		if (strum == null) continue;
+		strum.playAnim('hit', true);
+		if (i.hold) {
+			strum.animation.finishCallback = () -> {
+				strum.playAnim('hit', true);
+				strum.animation.finishCallback = null;
+			}
+		}
+	}
 	for (cover in holdCovers) {
 		var instance = cover.cover;
 		var strum = cover.strum;
 		if (strum != null) {
 			instance.setPosition(strum.x, strum.y);
 			instance.alpha = (strum.alpha > 0 ? 1 : 0);
+			if (strum.animation.curAnim.name != 'hit') instance.visible = false;
 		}
-		if (instance.animation.curAnim.finished) {
-			if (instance.animation.curAnim.name == 'end') instance.visible = false;
-			else instance.animation.play('loop', true);
-		}
+		if (instance.animation.curAnim.finished) instance.animation.play('loop', true);
 	}
 	var i = 0;
 	for (strum in game.playerStrums.members) {
-		if (strum.animation.curAnim.finished && strum.animation.curAnim.name == 'confirm') {
-			strum.playAnim('pressed');
-		}
+		if (strum.animation.curAnim.finished && strum.animation.curAnim.name == 'confirm' && strum.resetAnim <= 0) strum.playAnim('pressed');
 	}
 	return Function_Continue;
 }

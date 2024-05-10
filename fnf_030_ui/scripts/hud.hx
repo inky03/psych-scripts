@@ -113,23 +113,22 @@ function onUpdate(e) {
 	if (game.camZoomingDecay > 0) {
 		cameraBopMultiplier = 1 + 0.95 * (cameraBopMultiplier - 1.0);
 		var zoomPlusBop:Float = game.defaultCamZoom * cameraBopMultiplier;
-		FlxG.camera.zoom = game.defaultCamZoom * cameraBopMultiplier;
-		game.camHUD.zoom = FlxMath.lerp(1, camHUD.zoom, 0.95);
+		var hudZoomingMult:Float = (Std.isOfType(getVar('hudZoomingMult'), Float) ? getVar('hudZoomingMult') : 1);
+		FlxG.camera.zoom = game.defaultCamZoom * cameraBopMultiplier * game.camZoomingMult;
+		game.camHUD.zoom = FlxMath.lerp(1, camHUD.zoom, 0.95) * hudZoomingMult;
 	}
 	return Function_Continue;
 }
 function onUpdatePost(e) {
 	game.camZooming = false;
 	
-	var mult:Float = 1 - Math.exp(-e * 30);
-	lerpHealth += (game.health - lerpHealth) * mult;
+	lerpHealth = FlxMath.lerp(lerpHealth, game.health, .15); //WHY IS EVERYTHING TIED TO FPS
 	game.healthBar.percent = lerpHealth * 50;
 	
 	game.iconP1.setGraphicSize(iconScale);
 	game.iconP2.setGraphicSize(iconScale);
 	game.updateIconsPosition();
-	mult = 1 - Math.exp(-e * 18);
-	iconScale += (150 - iconScale) * mult;
+	iconScale = FlxMath.lerp(iconScale, 150, .15);
 	return Function_Continue;
 }
 

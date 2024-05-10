@@ -8,6 +8,10 @@ var save:Int = 0;
 SAVING MODES:
 DOESNT WORK RIGHT NOW! keep it at 0 unless you want slightly slower load 
 */
+var overrides = [
+	'pico-playable' => 'pico-player'
+];
+//if you want to replace characters by other ones
 
 /*
 TODO
@@ -70,7 +74,20 @@ function onCreate() {
 				Conductor.crochet = BPMms(startingBPM);
 			}
 		}
-		PlayState.SONG.artist = metadata.artist;
+		if (PlayState.SONG.artist == null) PlayState.SONG.artist = metadata.artist;
+		if (metadata.songName != null && PlayState.SONG.song.toLowerCase() == metadata.songName.toLowerCase()) PlayState.SONG.song = metadata.songName;
+		//yippee
+		
+		var playData = metadata.playData;
+		if (playData != null) {
+			var chars = playData.characters;
+			if (chars != null) {
+				if (chars.player != null) PlayState.SONG.player1 = overrideChara(chars.player);
+				if (chars.opponent != null) PlayState.SONG.player2 = overrideChara(chars.opponent);
+				if (chars.girlfriend != null) PlayState.SONG.gfVersion = overrideChara(chars.girlfriend);
+				if (PlayState.SONG.gfVersion != null) PlayState.SONG.player3 = PlayState.SONG.gfVersion;
+			}
+		}
 	}
 	
 	if (FileSystem.exists(path_chart)) {
@@ -156,6 +173,7 @@ function onCreate() {
 	return Function_Continue;
 }
 
+function overrideChara(char) return overrides.exists(char) ? overrides.get(char) : char;
 function notesFromObjects(objects, shift) { //{t: time, d: data, l:length} -> [time, data, length]
 	var realNotes:Array = [];
 	for (n in objects) {

@@ -21,7 +21,7 @@ function onCreate() {
 	return Function_Continue;
 }
 
-function onCreatePost() {
+function onSongStart() {
 	if (!enabled) return Function_Continue;
 	
 	currentSection = game.curSection;

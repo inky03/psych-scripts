@@ -42,7 +42,10 @@ function onCreatePost() {
 	for (asset in ['alphabet']) Paths.image('resultScreen/' + asset);
 	Paths.music('resultsNORMAL');
 }
-function goodNoteHit(note) maxCombo = Math.max(maxCombo, game.combo);
+function goodNoteHit(note) {
+	maxCombo = Math.max(maxCombo, game.combo);
+	return Function_Continue;
+}
 function onEndSong() {
 	if (ClientPrefs.getGameplaySetting('botplay') || ClientPrefs.getGameplaySetting('practice')) return Function_Continue;
 	if (PlayState.storyPlaylist.length > 1) return Function_Continue;
