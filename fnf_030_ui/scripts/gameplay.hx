@@ -25,6 +25,7 @@ var c_PBOT1_SCORING_SLOPE = .08;
 var c_PBOT1_MAX_SCORE = 500;
 var c_PBOT1_MIN_SCORE = 5;
 
+var killInfo:Array = [];
 var holdInfo:Array = [];
 var skull:Float = 0; //well, songScore is an integer
 var inputs:Array = [];
@@ -39,10 +40,6 @@ function onCreatePost() {
 	badBreaks = getModSetting('badcombobreak');
 	ghost = ClientPrefs.data.ghostTapping;
 	ClientPrefs.data.ghostTapping = true;
-	for (strum in game.strumLineNotes.members) holdInfo[strum.noteData] = {start: -1, end: 0, p: 0, g: 0};
-	var i = game.unspawnNotes.length;
-	var strum = game.playerStrums.members[0];
-	game.unspawnNotes.sort(PlayState.sortByTime);
 	return Function_Continue;
 }
 function onDestroy() ClientPrefs.data.ghostTapping = ghost;
@@ -91,12 +88,15 @@ function goodNoteHit(note) {
 		}
 		if (!newScore) return Function_Continue;
 		if (!game.cpuControlled && note.sustainLength > 0) {
-			var info = inArray(holdInfo, note.noteData);
-			info.note = note;
-			info.start = Math.min(Conductor.songPosition, note.strumTime); //why does this kinda work
-			info.length = note.sustainLength;
-			info.g = 0;
-			info.p = 0;
+			var info = {
+				data: note.noteData,
+				start: Math.min(Conductor.songPosition, note.strumTime),
+				length: note.sustainLength,
+				note: note,
+				p: 0,
+				g: 0
+			};
+			holdInfo.push(info);
 			updateHoldData(info, Conductor.songPosition, false);
 		}
 		var health = c_RATING_HEALTH[note.rating];
@@ -112,8 +112,8 @@ function snipeRating(string) {
 	return null;
 }
 function onKeyRelease(k) {
-	var hold = inArray(holdInfo, k);
-	if (hold != null && hold.start >= 0) {
+	for (hold in holdInfo) {
+		if (hold.data != k) continue;
 		updateHoldData(hold, Conductor.songPosition, true);
 		var note = hold.note;
 		if (note != null) {
@@ -125,18 +125,23 @@ function onKeyRelease(k) {
 			note.tail = [];
 		}
 		hold.start = -1;
+		killInfo.push(hold);
 	}
 	return Function_Continue;
 }
 function onUpdatePost() {
-	for (hold in holdInfo) if (hold.start >= 0) updateHoldData(hold, Conductor.songPosition, false);
+	for (kill in killInfo) holdInfo.remove(kill);
+	for (hold in holdInfo) updateHoldData(hold, Conductor.songPosition, false);
 	return Function_Continue;
 }
 function updateHoldData(hold, time, apply) {
+	if (hold.start < 0) return;
+	
 	var p:Float = time - hold.start;
 	if (p >= hold.length - (apply ? leniency : 0)) {
 		p = hold.length;
 		hold.start = -1;
+		killInfo.push(hold);
 	} else if (apply) game.health -= c_HOLD_DROP_PENALTY;
 	
 	var delta = Math.max(p - hold.p, 0); //deltatime

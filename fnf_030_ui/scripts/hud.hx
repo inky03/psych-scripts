@@ -44,7 +44,8 @@ function onCreate() {
 	fakeTrayAlpha = soundTray.alpha;
 	oldVolume = FlxG.sound.volume;
 	
-	oldTitle = Application.current.window.title;
+	var appTitle:String = Application.current.window.title;
+	if (StringTools.trim(appTitle) != '' && appTitle != 'Friday Night Funkin\'') oldTitle = appTitle;
 	Application.current.window.title = 'Friday Night Funkin\'';
 	
 	FlxTransitionableState.skipNextTransOut = true; //custom fps display
@@ -107,7 +108,7 @@ function onCreatePost() {
 	game.scoreTxt.setFormat(Paths.font('vcr.ttf'), 16, -1, 'right', FlxTextBorderStyle.OUTLINE, 0xff000000);
 	game.botplayTxt.kill();
 	
-	game.healthBar.y = FlxG.height * .9;
+	game.healthBar.y = FlxG.height * (ClientPrefs.data.downScroll ? .1 : .9);
 	game.healthBar.leftBar.color = 0xff0000;
 	game.healthBar.rightBar.color = 0x66ff33;
 	oldifyBar(game.healthBar);
