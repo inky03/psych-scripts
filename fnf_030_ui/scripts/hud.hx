@@ -7,6 +7,7 @@ import flixel.addons.transition.FlxTransitionableState;
 import flixel.util.FlxStringUtil;
 import flixel.group.FlxTypedSpriteGroup;
 
+var forceHBColors:Bool = false;
 var lerpHealth:Float = 1;
 var iconScale:Float = 150;
 var cameraBopMultiplier:Float = 1;
@@ -153,11 +154,6 @@ function onCountdownStarted() {
 	return Function_Continue;
 }
 
-function onEvent(n) if (n == 'Change Character') {
-	game.healthBar.setColors(0xff0000, 0x66ff33);
-	return Function_Continue;
-}
-
 function boom() {
 	if (game.camZoomingDecay > 0 && FlxG.camera.zoom < 1.35 * FlxCamera.defaultZoom && ClientPrefs.data.camZooms) {
 		cameraBopMultiplier = 1 + .015 * game.camZoomingMult;
@@ -198,6 +194,13 @@ function onUpdatePost(e) {
 	game.iconP2.setGraphicSize(iconScale);
 	game.updateIconsPosition();
 	iconScale = FlxMath.lerp(iconScale, 150, .15);
+	
+	if (forceHBColors && (game.healthBar.leftBar.color != 0xff0000 || game.healthBar.rightBar.color != 0x66ff33)) game.healthBar.setColors(0xff0000, 0x66ff33);
+	//uhh!
+	return Function_Continue;
+}
+function onEvent() {
+	game.healthBar.setColors(0xff0000, 0x66ff33);
 	return Function_Continue;
 }
 
