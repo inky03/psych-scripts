@@ -16,6 +16,7 @@ var prevFrame:Int = 0;
 var rgbs:Array = []; //rgb shader references for hold covers
 var holdCovers:Array = [];
 var playHits:Array = [];
+var playPresses:Array = [];
 var holdsData:Array = [];
 
 function onCreatePost() {
@@ -58,8 +59,20 @@ function onCreatePost() {
 	return Function_Continue;
 }
 
+function inArray(array, pos) { //array access lags workaround???
+    var i = 0;
+	if (pos >= array.length) return null;
+    for (item in array) {
+        if (i == pos) { return item; }
+        i ++;
+    }
+    return null;
+}
+
 function onKeyRelease(k) {
-	var cover = holdCovers[k + game.opponentStrums.length].cover;
+	var data = inArray(holdCovers, k + game.opponentStrums.length);
+	if (data == null) return Function_Continue;
+	var cover = data.cover;
 	if (cover != null && cover.animation.curAnim.name != 'end') cover.visible = false;
 	return Function_Continue;
 }
@@ -74,56 +87,58 @@ function popCover(note, strum, cover, rgb) {
 	}
 	cover.animation.play('start', true);
 }
+function spawnCoverSparks(cover) {
+	var coverSplash:FlxSprite = new FlxSprite(); //coverSplashGroup.recycle(FlxSprite); figure out why this doesnt work correctly later
+	coverSplash.frames = Paths.getSparrowAtlas('holdCoverShader');
+	coverSplash.setPosition(cover.x, cover.y);
+	coverSplash.offset.x = cover.offset.x;
+	coverSplash.offset.y = cover.offset.y;
+	coverSplash.antialiasing = ClientPrefs.data.antialiasing;
+	coverSplash.animation.addByPrefix('end', 'holdCoverEnd', 24, false);
+	coverSplash.animation.play('end', true);
+	coverSplash.shader = cover.shader;
+	coverSplash.animation.finishCallback = () -> coverSplash.destroy();
+	coverSplashGroup.add(coverSplash);
+}
 function coverLogic(note, end) {
 	if (note.noteSplashData.disabled) return;
 	
 	var data = note.noteData;
 	if (note.mustPress) data += game.opponentStrums.length;
 	
-	var cover = holdCovers[data];
-	var rgb = rgbs[data];
+	var coverData = inArray(holdCovers, data);
+	var rgb = inArray(rgbs, data);
 	
-	if (cover != null) {
-		cover = cover.cover;
-		if (note.isSustainNote) {
-			var strum = (note.mustPress ? game.playerStrums.members[note.noteData] : game.opponentStrums.members[note.noteData]);
-			if (!cover.visible || cover.animation.curAnim.name == 'end') popCover(note, strum, cover, rgb);
-			if ((end || Conductor.songPosition >= note.strumTime + Conductor.stepCrochet) && StringTools.endsWith(note.animation.curAnim.name, 'holdend')) {
-				if (!note.mustPress) {
-					cover.visible = false;
-					if (strum != null && strum.resetAnim <= 0) strum.playAnim('static');
-				} else if (strum != null) strum.playAnim('pressed');
-				strum.resetAnim = 0;
-				if (cover.visible) {
-					cover.visible = false;
-					var coverSplash:FlxSprite = new FlxSprite(); //coverSplashGroup.recycle(FlxSprite); figure out why this doesnt work correctly later
-					coverSplash.frames = Paths.getSparrowAtlas('holdCoverShader');
-					coverSplash.setPosition(cover.x, cover.y);
-					coverSplash.offset.x = cover.offset.x;
-					coverSplash.offset.y = cover.offset.y;
-					coverSplash.antialiasing = ClientPrefs.data.antialiasing;
-					coverSplash.animation.addByPrefix('end', 'holdCoverEnd', 24, false);
-					coverSplash.animation.play('end', true);
-					coverSplash.shader = cover.shader;
-					coverSplash.animation.finishCallback = () -> coverSplash.destroy();
-					coverSplashGroup.add(coverSplash);
-				}
+	if (coverData == null) return;
+	var strum = inArray(note.mustPress ? game.playerStrums.members : game.opponentStrums.members, note.noteData);
+	if (strum == null) return;
+	
+	var cover = coverData.cover;
+	if (note.isSustainNote) {
+		if (!cover.visible || cover.animation.curAnim.name == 'end') popCover(note, strum, cover, rgb);
+		if ((end || Conductor.songPosition >= note.strumTime + Conductor.stepCrochet) && StringTools.endsWith(note.animation.curAnim.name, 'holdend')) {
+			if (!note.mustPress) {
+				cover.visible = false;
+				strum.playAnim('static');
+			} else if (strum.animation.curAnim.name != 'static') strum.playAnim(game.cpuControlled ? 'static' : 'pressed');
+			strum.animation.finishCallback = null;
+			strum.resetAnim = 0;
+			if (cover.visible && note.mustPress) {
+				cover.visible = false;
+				spawnCoverSparks(cover);
 			}
-		} else if (note.sustainLength > 0) {
-			var strum = (note.mustPress ? game.playerStrums.members[note.noteData] : game.opponentStrums.members[note.noteData]);
-			popCover(note, strum, cover, rgb);
 		}
-	}
+	} else if (note.tail.length > 0) popCover(note, strum, cover, rgb);
 }
 function opponentNoteHit(note) {
 	coverLogic(note, false);
 	if (note.isSustainNote) game.dad.holdTimer = 0;
 	else {
-		var strum = game.opponentStrums.members[note.noteData];
+		var strum = inArray(game.opponentStrums.members, note.noteData);
 		if (strum != null) {
 			strum.playAnim('hit', true);
-			strum.resetAnim = (note.sustainLength > 0 ? note.sustainLength : Conductor.crochet) / 1000;
-			if (note.sustainLength > 0) {
+			strum.resetAnim = (note.tail.length > 0 ? note.sustainLength : Conductor.crochet) / 1000;
+			if (note.tail.length > 0) {
 				strum.animation.finishCallback = () -> {
 					strum.playAnim('hit', true);
 					strum.animation.finishCallback = null;
@@ -134,6 +149,7 @@ function opponentNoteHit(note) {
 }
 function makeGhostNote(note) {
 	var ghost = new Note(note.strumTime, note.noteData, null, note.isSustainNote);
+	ghost.noteType = 'MISSED_NOTE';
 	ghost.multAlpha = note.multAlpha * .5;
 	ghost.mustPress = note.mustPress;
 	ghost.ignoreNote = true;
@@ -144,13 +160,15 @@ function makeGhostNote(note) {
 	ghost.rgbShader.b = int_desat(ghost.rgbShader.b, 0.5);
 }
 function goodNoteHit(note) {
-	var strum = game.playerStrums.members[note.noteData];
+	var strum = inArray(game.playerStrums.members, note.noteData);
 	if (note.isSustainNote) {
 		game.boyfriend.holdTimer = 0;
 		if (strum != null) strum.resetAnim = Conductor.crochet / 1000;
 	} else if (strum != null) {
 		playHits.push({strum: strum, hold: note.sustainLength > 0});
-		strum.resetAnim = ((note.sustainLength > 0 || game.cpuControlled) ? Conductor.crochet : 0) / 1000;
+		for (press in playPresses) if (press.strum == strum) playPresses.remove(press);
+		if (note.tail.length == 0) playPresses.push({strum: strum, time: note.strumTime + Conductor.crochet});
+		strum.resetAnim = ((note.tail.length > 0 || game.cpuControlled) ? Conductor.crochet : 0) / 1000;
 	}
 	coverLogic(note, false);
 	return Function_Continue;
@@ -177,6 +195,17 @@ function onUpdatePost(e) {
 			}
 		}
 	}
+	for (press in playPresses) {
+		if (Conductor.songPosition >= press.time) {
+			var strum = press.strum;
+			if (strum != null && strum.animation.curAnim.name == 'hit' && strum.resetAnim <= 0) {
+				strum.animation.finishCallback = null;
+				strum.playAnim('pressed');
+				strum.resetAnim = 0;
+			}
+			playPresses.remove(press);
+		}
+	}
 	for (cover in holdCovers) {
 		var instance = cover.cover;
 		var strum = cover.strum;
@@ -186,13 +215,6 @@ function onUpdatePost(e) {
 			if (strum.animation.curAnim.name != 'hit') instance.visible = false;
 		}
 		if (instance.animation.curAnim.finished) instance.animation.play('loop', true);
-	}
-	for (strum in game.playerStrums.members) {
-		if (strum.animation.curAnim.finished && strum.animation.curAnim.name == 'hit' && strum.resetAnim <= 0) {
-			strum.animation.finishCallback = null;
-			strum.playAnim('pressed');
-			strum.resetAnim = 0;
-		}
 	}
 	return Function_Continue;
 }

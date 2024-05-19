@@ -1,3 +1,6 @@
+import flixel.group.FlxTypedSpriteGroup;
+
+var milestoneGroup:FlxTypedSpriteGroup<FlxSprite>;
 var enabled:Bool = false;
 var effectStuff:FlxSprite = null;
 var milestoneScreentime:Float = -1;
@@ -14,6 +17,10 @@ var previousSection:Int = 0;
 function onCreate() {
 	enabled = getModSetting('combomilestone');
 	if (!enabled) return Function_Continue;
+	
+	milestoneGroup = new FlxTypedSpriteGroup();
+	milestoneGroup.cameras = [game.camHUD];
+	game.add(milestoneGroup);
 	
 	Paths.sound('comboSound');
 	Paths.getSparrowAtlas('comboMilestone');
@@ -70,23 +77,24 @@ function onUpdate(e) {
 	if (frame == 17) effectStuff.animation.pause();
 	if (frame == 2 && !milestoneComboSetup) setupCombo(effectStuff.x, effectStuff.y, combo);
 	if (frame == 18) for (n in milestoneNumbers) n.animation.reset();
-	if (frame >= 20) {
-		while (milestoneNumbers.length > 0) {
-			var n = milestoneNumbers.shift();
-			n.destroy();
-		}
-	}
+	if (frame >= 20) destroyNums();
 	
 	return Function_Continue;
 }
 
+function destroyNums() {
+	while (milestoneNumbers.length > 0) {
+		var n = milestoneNumbers.shift();
+		milestoneGroup.remove(n);
+		n.destroy();
+	}
+}
+
 function Milestone(x, y, combo) {
 	if (effectStuff != null) {
+		milestoneGroup.remove(effectStuff);
 		effectStuff.destroy();
-		while (milestoneNumbers.length > 0) {
-			var n = milestoneNumbers.shift();
-			n.destroy();
-		}
+		destroyNums();
 	}
 	FlxG.sound.play(Paths.sound('comboSound')); //this is set to happen when setupCombo is called but i think its better if its synced to the beat
 	milestoneCombo = combo;
@@ -97,13 +105,14 @@ function Milestone(x, y, combo) {
 	effectStuff.animation.addByPrefix('main', 'NOTE COMBO animation', 24, false);
 	effectStuff.animation.play('main');
 	effectStuff.animation.finishCallback = () -> {
+		milestoneGroup.remove(effectStuff);
 		effectStuff.destroy();
 		effectStuff = null;
 	};
 	effectStuff.setGraphicSize(effectStuff.width * .7);
 	effectStuff.cameras = [game.camHUD];
 	effectStuff.scrollFactor.set(.6, .6);
-	game.add(effectStuff);
+	milestoneGroup.add(effectStuff);
 }
 function setupCombo(x, y, combo) {
 	milestoneComboSetup = true;
@@ -113,7 +122,7 @@ function setupCombo(x, y, combo) {
 		var combo = new FlxSprite(450 - (100 * i) + x - 20, 20 + 14 * i + y);
 		combo.frames = Paths.getSparrowAtlas('comboMilestoneNumbers');
 		combo.cameras = [game.camHUD];
-		game.add(combo);
+		milestoneGroup.add(combo);
 		milestoneNumbers.push(combo);
 		combo.scrollFactor.set(effectStuff.scrollFactor.x, effectStuff.scrollFactor.y);
 		combo.animation.addByPrefix(num, num, 24, false);

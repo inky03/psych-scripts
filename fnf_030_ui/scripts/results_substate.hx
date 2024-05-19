@@ -8,6 +8,8 @@ TODO
 - finish stats for story mode (total notes, combo, etc)
 - fix other stuff
 */
+import flixel.util.FlxSave;
+import backend.CoolUtil;
 import backend.MusicBeatState;
 import flixel.addons.transition.FlxTransitionableState;
 import backend.WeekData;
@@ -33,27 +35,70 @@ var scoreInstances:Array = [];
 var shownResults:Bool = false;
 
 var maxCombo:Int = 0;
+var totalHits:Int = 0;
 var totalNotes:Int = 0;
+var campaignScore:Int = 0;
 
 function onCreatePost() {
-	for (note in game.unspawnNotes) if (note.mustPress && !note.isSustainNote) totalNotes ++;
+	//for (note in game.unspawnNotes) if (note.mustPress && !note.isSustainNote) totalNotes ++;
 	for (asset in ['resultBoyfriendGOOD', 'results', 'soundSystem', 'score-digital-numbers', 'tallieNumber',
 	'resultGirlfriendGOOD', 'scorePopin', 'ratingsPopin', 'highscoreNew']) Paths.getSparrowAtlas('resultScreen/' + asset);
 	for (asset in ['alphabet']) Paths.image('resultScreen/' + asset);
 	Paths.music('resultsNORMAL');
+	//get rid of story mode save when starting a week, in case of unexpected song exit
+	if (PlayState.isStoryMode) {
+		var weekSongs = WeekData.getCurrentWeek().songs;
+		if (PlayState.SONG.song.toLowerCase() == weekSongs[0][0].toLowerCase()) {
+			var save:FlxSave = new FlxSave();
+			save.bind('_storymode', CoolUtil.getSavePath() + '/psychenginemods');
+			save.erase();
+			save.flush();
+		}
+	}
 }
 function goodNoteHit(note) {
+	if (!note.hitCausesMiss && !note.isSustainNote) totalHits ++;
 	maxCombo = Math.max(maxCombo, game.combo);
 	return Function_Continue;
 }
 function onEndSong() {
 	if (ClientPrefs.getGameplaySetting('botplay') || ClientPrefs.getGameplaySetting('practice')) return Function_Continue;
-	if (PlayState.storyPlaylist.length > 1) return Function_Continue;
+	if (PlayState.isStoryMode && PlayState.storyPlaylist.length > 1) {
+		var save:FlxSave = new FlxSave();
+		save.bind('_storymode', CoolUtil.getSavePath() + '/psychenginemods');
+		//campaignScore acted weird?? for some fuckin reason???
+		if (save.data.score == null) save.data.score = 0; save.data.score += game.songScore;
+		if (save.data.hits == null) save.data.hits = 0; save.data.hits += totalHits;
+		if (save.data.sicks == null) save.data.sicks = 0; save.data.sicks += game.ratingsData[0].hits;
+		if (save.data.goods == null) save.data.goods = 0; save.data.goods += game.ratingsData[1].hits;
+		if (save.data.bads == null) save.data.bads = 0; save.data.bads += game.ratingsData[2].hits;
+		if (save.data.shits == null) save.data.shits = 0; save.data.shits += game.ratingsData[3].hits;
+		if (save.data.maxCombo == null) save.data.maxCombo = 0; save.data.maxCombo = Math.max(save.data.maxCombo, maxCombo);
+		save.flush();
+		
+		return Function_Continue;
+	}
 	if (shownResults) return Function_Continue;
+	
+	if (PlayState.isStoryMode) {
+		var save:FlxSave = new FlxSave();
+		save.bind('_storymode', CoolUtil.getSavePath() + '/psychenginemods');
+		totalHits += (save.data.hits != null ? save.data.hits : 0);
+		campaignScore = game.songScore + (save.data.score != null ? save.data.score : 0);
+		game.ratingsData[0].hits += (save.data.sicks != null ? save.data.sicks : 0);
+		game.ratingsData[1].hits += (save.data.goods != null ? save.data.goods : 0);
+		game.ratingsData[2].hits += (save.data.bads != null ? save.data.bads : 0);
+		game.ratingsData[3].hits += (save.data.shits != null ? save.data.shits : 0);
+		if (save.data.maxCombo != null) maxCombo = Math.max(save.data.maxCombo, maxCombo);
+		save.erase();
+		save.flush();
+		PlayState.campaignScore = campaignScore;
+	}
+	
 	var weekNoMiss:String = WeekData.getWeekFileName() + '_nomiss';
 	game.checkForAchievement([weekNoMiss, 'ur_bad', 'ur_good', 'hype', 'two_keys', 'toastie', 'debugger']);
 	shownResults = true;
-	game.camFollow.setPosition(game.gf.getMidpoint().x, game.gf.getMidpoint().y);
+	if (game.gf != null) game.camFollow.setPosition(game.gf.getMidpoint().x, game.gf.getMidpoint().y);
 	var fade:FlxSprite = new FlxSprite(FlxG.width * .5, FlxG.height * .5).makeGraphic(1, 1, 0xff000000);
 	fade.scale.set(FlxG.width * 2, FlxG.height * 2);
 	fade.scrollFactor.set();
@@ -175,18 +220,16 @@ function resultsScreen(inst) {
 	}
 	inst.add(resultsTitle);
 	
-	if (!PlayState.isStoryMode) {
-		createTally(375, 150, -1, totalNotes);
-		createTally(375, 200, -1, maxCombo);
-		createTally(230, 265, 0xff89e59e, game.ratingsData[0].hits);
-		createTally(210, 317, 0xff89c9e5, game.ratingsData[1].hits);
-		createTally(190, 369, 0xffe6cf8a, game.ratingsData[2].hits);
-		createTally(220, 421, 0xffe68c8a, game.ratingsData[3].hits);
-	}
+	createTally(375, 150, -1, totalHits); //i think its the total amount of notes you hit actually??
+	createTally(375, 200, -1, maxCombo);
+	createTally(230, 265, 0xff89e59e, game.ratingsData[0].hits);
+	createTally(210, 317, 0xff89c9e5, game.ratingsData[1].hits);
+	createTally(190, 369, 0xffe6cf8a, game.ratingsData[2].hits);
+	createTally(220, 421, 0xffe68c8a, game.ratingsData[3].hits);
 	createTally(260, 473, 0xffc68ae6, PlayState.isStoryMode ? PlayState.campaignMisses : game.songMisses);
 	
 	var scoreNames:Array = ['ZERO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE'];
-	var scores:Array = Std.string(Math.max(PlayState.isStoryMode ? PlayState.campaignScore : game.songScore, 0)).split('');
+	var scores:Array = Std.string(Math.max(PlayState.isStoryMode ? campaignScore : game.songScore, 0)).split('');
 	var scoreNums:Array = [];
 	while (scores.length < 10) scores.unshift('');
 	var i = 0;
@@ -208,6 +251,7 @@ function resultsScreen(inst) {
 		if (resultsBf == null) return;
 		currentTally = 0;
 		resultsBf.animation.play('start', true);
+		resultsBf.animation.finishCallback = () -> resultsBf.animation.play('loop');
 		soundSystem.animation.play('anim');
 		cats.animation.play('main');
 		for (i in [resultsBf, soundSystem, cats]) i.alpha = 1;
@@ -242,6 +286,7 @@ function resultsScreen(inst) {
 	dumb.push(new FlxTimer().start(.9166, () -> { //gf appear
 		if (resultsGf == null) return;
 		resultsGf.animation.play('start', true);
+		resultsGf.animation.finishCallback = () -> resultsGf.animation.play('loop');
 		resultsGf.alpha = 1;
 	}));
 }
@@ -250,10 +295,7 @@ function tallyDumb(tally, e) {
 	if (tallied) tallyDumb(++ currentTally, e);
 }
 function onCustomSubstateCreate(substate) {
-	if (substate == 'results') {
-		resultsScreen(CustomSubstate.instance);
-		debugPrint('wtf result substate');
-	}
+	if (substate == 'results') resultsScreen(CustomSubstate.instance);
 }
 function onCustomSubstateDestroy(substate) {
 	if (substate == 'results') {
@@ -305,8 +347,6 @@ function onCustomSubstateUpdate(substate, e) {
 			dumb.push(new FlxTimer().start(1.5, moveAlphabets));
 		}
 		if (CustomSubstate.instance.controls.ACCEPT) CustomSubstate.closeCustomSubstate();
-		if (resultsBf != null && resultsBf.animation.curAnim.finished) resultsBf.animation.play('loop');
-		if (resultsGf != null && resultsGf.animation.curAnim.finished) resultsGf.animation.play('loop');
 		tallyDumb(currentTally, e);
 	}
 }

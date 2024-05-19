@@ -18,6 +18,13 @@ var c_GHOST_MISS_PENALTY:Float = getHealth(2);
 var c_HOLD_DROP_PENALTY:Float = getHealth(0);
 //var c_MINE_PENALTY:Float = getHealth(15);
 
+var c_PBOT1_MISS = 160;
+var c_PBOT1_PERFECT = 5;
+var c_PBOT1_SCORING_OFFSET = 54.99;
+var c_PBOT1_SCORING_SLOPE = .08;
+var c_PBOT1_MAX_SCORE = 500;
+var c_PBOT1_MIN_SCORE = 5;
+
 var holdInfo:Array = [];
 var skull:Float = 0; //well, songScore is an integer
 var inputs:Array = [];
@@ -43,19 +50,17 @@ function onKeyPress(k) {
 	if (inputs.contains(k)) inputs.remove(k);
 	else if (!ghost) {
 		FlxG.sound.play(Paths.soundRandom('missnote', 1, 3), FlxG.random.float(0.1, 0.2));
-		game.boyfriend.playAnim(game.singAnimations[k] + 'miss', true);
+		game.boyfriend.playAnim(inArray(game.singAnimations, k) + 'miss', true);
 		game.health -= c_GHOST_MISS_PENALTY * game.healthLoss;
 		game.songScore -= 10;
 		game.RecalculateRating(true);
-		if (miss) {
-			game.callOnScripts('noteMissPress', [k]);
-			game.combo = 0;
-		}
+		game.callOnScripts('noteMissPress', [k]);
+		if (miss) game.combo = 0;
 	}
 	return Function_Continue;
 }
 function noteMiss(note) {
-	FlxG.sound.play(Paths.soundRandom('missnote', 1, 3), FlxG.random.float(0.5, 0.6));
+	if (!note.hitCausesMiss || note.hitsound == 'hitsound') FlxG.sound.play(Paths.soundRandom('missnote', 1, 3), FlxG.random.float(0.5, 0.6));
 	if (!note.isSustainNote && newScore) {
 		var sub:Float = (note != null ? note.missHealth : .05);
 		game.health += sub * game.healthLoss;
@@ -65,6 +70,19 @@ function noteMiss(note) {
 }
 function goodNoteHitPre(note) if (!note.isSustainNote) inputs.push(note.noteData);
 function goodNoteHit(note) {
+	if (newScore && !note.isSustainNote) { //PBOT1
+		var rating = snipeRating(note.rating);
+		if (rating != null) game.songScore -= rating.score;
+		
+		var timing = Math.abs(note.strumTime - Conductor.songPosition + ClientPrefs.data.ratingOffset);
+		var score:Int = c_PBOT1_MIN_SCORE;
+		if (timing < c_PBOT1_PERFECT) score = c_PBOT1_MAX_SCORE;
+		else if (timing < c_PBOT1_MISS) {
+			var factor:Float = 1.0 - (1.0 / (1.0 + Math.exp(-c_PBOT1_SCORING_SLOPE * (timing - c_PBOT1_SCORING_OFFSET))));
+			score = Std.int(c_PBOT1_MAX_SCORE * factor + c_PBOT1_MIN_SCORE);
+		}
+		game.songScore += score;
+	}
 	if (!holdSystem) return Function_Continue;
 	if (!note.isSustainNote) {
 		if (badBreaks && (note.rating == 'bad' || note.rating == 'shit')) {
@@ -73,7 +91,7 @@ function goodNoteHit(note) {
 		}
 		if (!newScore) return Function_Continue;
 		if (!game.cpuControlled && note.sustainLength > 0) {
-			var info = holdInfo[note.noteData];
+			var info = inArray(holdInfo, note.noteData);
 			info.note = note;
 			info.start = Math.min(Conductor.songPosition, note.strumTime); //why does this kinda work
 			info.length = note.sustainLength;
@@ -86,10 +104,15 @@ function goodNoteHit(note) {
 		game.health -= note.hitHealth * game.healthGain;
 		game.health += health;
 	}
+	game.updateScore();
 	return Function_Continue;
 }
+function snipeRating(string) {
+	for (rating in game.ratingsData) if (rating.name == string) return rating;
+	return null;
+}
 function onKeyRelease(k) {
-	var hold = holdInfo[k];
+	var hold = inArray(holdInfo, k);
 	if (hold != null && hold.start >= 0) {
 		updateHoldData(hold, Conductor.songPosition, true);
 		var note = hold.note;
@@ -126,4 +149,13 @@ function updateHoldData(hold, time, apply) {
 	hold.g += delta * c_HOLD_BONUS * .001;
 	
 	if (apply) hold.start = -1;
+}
+function inArray(array, pos) { //array access lags workaround???
+	if (pos >= array.length) return null;
+    var i = 0;
+    for (item in array) {
+        if (i == pos) return item;
+        i ++;
+    }
+    return null;
 }

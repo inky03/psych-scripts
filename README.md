@@ -1,2 +1,2 @@
 # psych-scripts
-scripts made for fnf psych engine
+scripts Ive made for fnf psych engine

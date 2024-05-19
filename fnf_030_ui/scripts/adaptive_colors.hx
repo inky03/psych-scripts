@@ -2,7 +2,7 @@ var strumShades:Map = [];
 var shadeNotes:Bool = false;
 var adaptive:Bool = false;
 
-function onCreatePost() {
+function onCountdownStarted() {
 	adaptive = getModSetting('adaptivecolors'); //doesnt support pixel stages
 	if (!adaptive) return Function_Continue;
 	

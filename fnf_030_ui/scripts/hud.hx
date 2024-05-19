@@ -1,4 +1,5 @@
 import Main;
+import lime.app.Application;
 import openfl.text.TextFormat;
 import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
@@ -15,8 +16,15 @@ var noteEffects:Bool = false;
 var skipTween:Bool = false;
 var comboGroup:FlxTypedSpriteGroup<FlxSprite>;
 
+var oldTitle = 'Friday Night Funkin\': Psych Engine';
 var psychFps = null;
 var memPeak = 0;
+
+var fakeTrayY = 0;
+var fakeTrayAlpha = 0;
+var trayLerpY = 0;
+var trayAlphaTarget = 0;
+var oldVolume:Float = 0;
 
 //constants
 var c_PIXELARTSCALE:Float = 6;
@@ -24,20 +32,64 @@ var c_PIXELARTSCALE:Float = 6;
 function onCreate() {
 	comboGroup = new FlxTypedSpriteGroup();
 	game.add(comboGroup);
+	
 	missRating = getModSetting('miss');
 	noteEffects = getModSetting('pixeleffects') || !PlayState.isPixelStage;
 	var showRam:Bool = getModSetting('showram');
+	
+	for (snd in ['Volup', 'Voldown', 'VolMAX']) Paths.sound('soundtray/' + snd);
+	var soundTray = FlxG.game.soundTray;
+	fakeTrayY = soundTray.y;
+	fakeTrayAlpha = soundTray.alpha;
+	oldVolume = FlxG.sound.volume;
+	
+	oldTitle = Application.current.window.title;
+	Application.current.window.title = 'Friday Night Funkin\'';
+	
 	FlxTransitionableState.skipNextTransOut = true; //custom fps display
 	psychFps = Main.fpsVar.updateText;
 	Main.fpsVar.defaultTextFormat = new TextFormat('_sans', 12, 0xffffff, false, false, false, '', '', 'left', 0, 0, 0, -4); //lol!
 	Main.fpsVar.updateText = () -> {
         memPeak = Math.max(memPeak, Main.fpsVar.memoryMegas);
         Main.fpsVar.text = 'FPS: ' + Main.fpsVar.currentFPS + (showRam ? ('\nRAM: ' + FlxStringUtil.formatBytes(Main.fpsVar.memoryMegas).toLowerCase() + ' / ' + FlxStringUtil.formatBytes(memPeak).toLowerCase()) : '');
+		
+		//cant modify soundTray.show (or i couldnt get it to work), so override here :(
+		if (soundTray.active && soundTray.visible) {
+			if (soundTray._timer > 0) {
+				trayAlphaTarget = 1;
+				trayLerpY = 10;
+			} else {
+				trayLerpY = -soundTray.height - 10;
+				trayAlphaTarget = 0;
+			}
+			fakeTrayY = FlxMath.lerp(fakeTrayY, trayLerpY, .1);
+			fakeTrayAlpha = FlxMath.lerp(fakeTrayAlpha, trayAlphaTarget, .25);
+			soundTray.y = fakeTrayY;
+			soundTray.alpha = fakeTrayAlpha;
+			var globalVolume:Int = (FlxG.sound.muted ? 0 : Math.round(FlxG.sound.volume * 10));
+			var i = 1;
+			for (bar in soundTray._bars) {
+				bar.visible = (i == globalVolume); //so the bars dont stack up lmao!
+				i ++;
+			}
+			//check volume change
+			if (FlxG.sound.volume != oldVolume || (FlxG.keys.anyJustPressed(FlxG.sound.volumeUpKeys) && FlxG.sound.volume >= 1)) {
+				if (oldVolume > FlxG.sound.volume) FlxG.sound.play(Paths.sound('soundtray/Voldown'));
+				else FlxG.sound.play(Paths.sound('soundtray/Vol' + (FlxG.sound.volume < 1 ? 'up' : 'MAX')));
+				oldVolume = FlxG.sound.volume;
+			}
+		}
     }
 	return Function_Continue;
 }
 
-function onUpdateScore() game.scoreTxt.text = (game.cpuControlled ? 'Bot Play Enabled' : 'Score: ' + game.songScore);
+function onDestroy() {
+	Application.current.window.title = oldTitle;
+	Main.fpsVar.defaultTextFormat = new TextFormat('_sans', 14, 0xffffff, false, false, false, '', '', 'left', 0, 0, 0, 0);
+	Main.fpsVar.updateText = psychFps;
+}
+
+function onUpdateScore() game.scoreTxt.text = (game.cpuControlled ? 'Bot Play Enabled' : 'Score:' + game.songScore);
 
 function onCreatePost() {
 	for (note in game.unspawnNotes) if (!noteEffects) note.noteSplashData.disabled = true;
@@ -54,12 +106,24 @@ function onCreatePost() {
 	game.scoreTxt.setFormat(Paths.font('vcr.ttf'), 16, -1, 'right', FlxTextBorderStyle.OUTLINE, 0xff000000);
 	game.botplayTxt.kill();
 	
+	game.healthBar.y = FlxG.height * .9;
+	game.healthBar.leftBar.color = 0xff0000;
+	game.healthBar.rightBar.color = 0x66ff33;
+	oldifyBar(game.healthBar);
+	game.healthBar.barOffset.set(4, 4);
+	
 	return Function_Continue;
 }
 
-function onDestroy() {
-	Main.fpsVar.defaultTextFormat = new TextFormat('_sans', 14, 0xffffff, false, false, false, '', '', 'left', 0, 0, 0, 0);
-	Main.fpsVar.updateText = psychFps;
+function oldifyBar(bar) {
+	bar.remove(bar.leftBar);
+	bar.remove(bar.rightBar);
+	var what = bar.members.indexOf(bar.bg) + 1;
+	bar.insert(what, bar.leftBar);
+	bar.insert(what, bar.rightBar);
+	bar.barWidth = bar.bg.width - 8;
+	bar.barHeight = bar.bg.height - 8;
+	bar.updateBar();
 }
 
 function onStartCountdown() {
@@ -69,6 +133,8 @@ function onStartCountdown() {
 }
 
 function onCountdownStarted() {
+	game.remove(game.uiGroup);
+	game.insert(0, game.uiGroup);
 	var m:Int = (ClientPrefs.data.downScroll ? -1 : 1);
 	var i:Int = 0;
 	for (strum in game.strumLineNotes.members) {
@@ -145,6 +211,8 @@ function goodNoteHit(note) {
 	return Function_Continue;
 }
 function noteMissPress(d) {
+	var miss = getModSetting('missbutlikeactually');
+	if (!miss) return Function_Continue;
 	var wipe:Bool = false;
 	if (missRating) wipe = displayRating('miss');
 	if (combo >= 10) displayCombo(0);
