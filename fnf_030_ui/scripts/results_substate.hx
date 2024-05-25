@@ -441,7 +441,8 @@ function resultsUpdate(inst, e) {
 		FlxTween.tween(grpInfoTexts, {y: grpInfoTexts.y + 75}, .5, {ease: FlxEase.quartOut});
 		subTimers.push(new FlxTimer().start(1.5, moveAlphabets));
 	}
-	if (inst.controls.ACCEPT) resultsClose();
+	var close:Bool = inst.controls.ACCEPT || (FlxG.android != null && FlxG.android.justReleased.BACK);
+	if (close) resultsClose();
 	tallyDumb(currentTally, e);
 }
 function onUpdatePost(e) {

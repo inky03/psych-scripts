@@ -48,8 +48,10 @@ function onCreate() {
 	
 	for (snd in ['Volup', 'Voldown', 'VolMAX']) Paths.sound('soundtray/' + snd);
 	var soundTray = FlxG.game.soundTray;
-	fakeTrayY = soundTray.y;
-	fakeTrayAlpha = soundTray.alpha;
+	if (soundTray != null && soundTray.y != null) { //yea man!??
+		fakeTrayY = soundTray.y;
+		fakeTrayAlpha = soundTray.alpha;
+	}
 	oldVolume = FlxG.sound.volume;
 	
 	var appTitle:String = Application.current.window.title;
