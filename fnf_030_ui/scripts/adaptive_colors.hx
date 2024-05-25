@@ -2,8 +2,13 @@ var strumShades:Map = [];
 var shadeNotes:Bool = false;
 var adaptive:Bool = false;
 
+function getSetting(setting, def) {
+	var setting = game.callOnHScript('getScrSetting', [setting, def]);
+	if (!Std.isOfType(setting, Bool)) return def;
+	return setting;
+}
 function onCountdownStarted() {
-	adaptive = getModSetting('adaptivecolors'); //doesnt support pixel stages
+	adaptive = getSetting('adaptivecolors', true); //doesnt support pixel stages
 	if (!adaptive) return Function_Continue;
 	
 	var tex = game.playerStrums.members[0].texture + '_n';

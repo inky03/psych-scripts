@@ -6,12 +6,14 @@ import flixel.text.FlxTextBorderStyle;
 import flixel.addons.transition.FlxTransitionableState;
 import flixel.util.FlxStringUtil;
 import flixel.group.FlxTypedSpriteGroup;
+using StringTools;
 
 var forceHBColors:Bool = false;
 var lerpHealth:Float = 1;
 var iconScale:Float = 150;
 var cameraBopMultiplier:Float = 1;
 var combo:Int = 0;
+var doMiss:Bool = false;
 var missRating:Bool = false;
 var noteEffects:Bool = false;
 var skipTween:Bool = false;
@@ -30,13 +32,19 @@ var oldVolume:Float = 0;
 //constants
 var c_PIXELARTSCALE:Float = 6;
 
+function getSetting(setting, def) {
+	var setting = game.callOnHScript('getScrSetting', [setting, def]);
+	if (!Std.isOfType(setting, Bool)) return def;
+	return setting;
+}
 function onCreate() {
 	comboGroup = new FlxTypedSpriteGroup();
 	game.add(comboGroup);
 	
-	missRating = getModSetting('miss');
-	noteEffects = getModSetting('pixeleffects') || !PlayState.isPixelStage;
-	var showRam:Bool = getModSetting('showram');
+	doMiss = getSetting('missbutlikeactually', false);
+	missRating = getSetting('miss', false);
+	noteEffects = getSetting('pixeleffects', true) || !PlayState.isPixelStage;
+	var showRam:Bool = getSetting('showram', false);
 	
 	for (snd in ['Volup', 'Voldown', 'VolMAX']) Paths.sound('soundtray/' + snd);
 	var soundTray = FlxG.game.soundTray;
@@ -45,7 +53,7 @@ function onCreate() {
 	oldVolume = FlxG.sound.volume;
 	
 	var appTitle:String = Application.current.window.title;
-	if (StringTools.trim(appTitle) != '' && appTitle != 'Friday Night Funkin\'') oldTitle = appTitle;
+	if (appTitle.trim() != '' && appTitle != 'Friday Night Funkin\'') oldTitle = appTitle;
 	Application.current.window.title = 'Friday Night Funkin\'';
 	
 	FlxTransitionableState.skipNextTransOut = true; //custom fps display
@@ -56,7 +64,7 @@ function onCreate() {
         Main.fpsVar.text = 'FPS: ' + Main.fpsVar.currentFPS + (showRam ? ('\nRAM: ' + FlxStringUtil.formatBytes(Main.fpsVar.memoryMegas).toLowerCase() + ' / ' + FlxStringUtil.formatBytes(memPeak).toLowerCase()) : '');
 		
 		//cant modify soundTray.show (or i couldnt get it to work), so override here :(
-		if (soundTray.active && soundTray.visible) {
+		if (soundTray != null && soundTray.active && soundTray.visible) {
 			if (soundTray._timer > 0) {
 				trayAlphaTarget = 1;
 				trayLerpY = 10;
@@ -215,8 +223,7 @@ function goodNoteHit(note) {
 	return Function_Continue;
 }
 function noteMissPress(d) {
-	var miss = getModSetting('missbutlikeactually');
-	if (!miss) return Function_Continue;
+	if (!doMiss) return Function_Continue;
 	var wipe:Bool = false;
 	if (missRating) wipe = displayRating('miss');
 	if (combo >= 10) displayCombo(0);

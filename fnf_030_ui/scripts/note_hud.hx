@@ -27,12 +27,6 @@ function onCreatePost() {
 	coverSplashGroup.cameras = [game.camHUD];
 	game.add(coverSplashGroup);
 	
-	for (note in game.unspawnNotes) {
-		if (note.isSustainNote) {
-			note.multAlpha = 1;
-			note.noAnimation = true;
-		}
-	}
 	var pixel:Float = (PlayState.isPixelStage ? PlayState.daPixelZoom : 1);
 	var i = 0;
 	for (strum in game.strumLineNotes.members) {
@@ -69,6 +63,13 @@ function inArray(array, pos) { //array access lags workaround???
     return null;
 }
 
+function onSpawnNote(note) {
+	if (note.isSustainNote) {
+		note.multAlpha = 1;
+		note.extraData.set('anim', !note.noAnimation);
+		note.noAnimation = true;
+	}
+}
 function onKeyRelease(k) {
 	var data = inArray(holdCovers, k + game.opponentStrums.length);
 	if (data == null) return Function_Continue;
@@ -132,8 +133,9 @@ function coverLogic(note, end) {
 }
 function opponentNoteHit(note) {
 	coverLogic(note, false);
-	if (note.isSustainNote) game.dad.holdTimer = 0;
-	else {
+	if (note.isSustainNote) {
+		if (note.extraData.get('anim')) game.dad.holdTimer = 0;
+	} else {
 		var strum = inArray(game.opponentStrums.members, note.noteData);
 		if (strum != null) {
 			strum.playAnim('hit', true);
@@ -162,8 +164,8 @@ function makeGhostNote(note) {
 function goodNoteHit(note) {
 	var strum = inArray(game.playerStrums.members, note.noteData);
 	if (note.isSustainNote) {
-		game.boyfriend.holdTimer = 0;
-		if (strum != null) strum.resetAnim = Conductor.crochet / 1000;
+		if (note.extraData.get('anim')) game.boyfriend.holdTimer = 0;
+		if (strum != null && strum.resetAnim > 0) strum.resetAnim = Conductor.crochet / 1000;
 	} else if (strum != null) {
 		playHits.push({strum: strum, hold: note.sustainLength > 0});
 		for (press in playPresses) if (press.strum == strum) playPresses.remove(press);

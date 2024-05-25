@@ -34,10 +34,15 @@ var miss:Bool = false;
 var badBreaks:Bool = true;
 var newScore:Bool = true;
 
+function getSetting(setting, def) {
+	var setting = game.callOnHScript('getScrSetting', [setting, def]);
+	if (!Std.isOfType(setting, Bool)) return def;
+	return setting;
+}
 function onCreatePost() {
-	newScore = getModSetting('newscoring');
-	miss = getModSetting('missbutlikeactually');
-	badBreaks = getModSetting('badcombobreak');
+	newScore = getSetting('newscoring', true);
+	miss = getSetting('missbutlikeactually', false);
+	badBreaks = getSetting('badcombobreak', true);
 	ghost = ClientPrefs.data.ghostTapping;
 	ClientPrefs.data.ghostTapping = true;
 	return Function_Continue;
@@ -52,7 +57,10 @@ function onKeyPress(k) {
 		game.songScore -= 10;
 		game.RecalculateRating(true);
 		game.callOnScripts('noteMissPress', [k]);
-		if (miss) game.combo = 0;
+		if (miss) {
+			game.combo = 0;
+			game.songMisses ++;
+		}
 	}
 	return Function_Continue;
 }
@@ -102,7 +110,7 @@ function goodNoteHit(note) {
 		var health = c_RATING_HEALTH[note.rating];
 		if (health == null) health = 0;
 		game.health -= note.hitHealth * game.healthGain;
-		game.health += health;
+		game.health += health * game.healthGain;
 	}
 	game.updateScore();
 	return Function_Continue;

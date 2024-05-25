@@ -14,8 +14,13 @@ var nextSection = null;
 var currentSection:Int = 0;
 var previousSection:Int = 0;
 
+function getSetting(setting, def) {
+	var setting = game.callOnHScript('getScrSetting', [setting, def]);
+	if (!Std.isOfType(setting, Bool)) return def;
+	return setting;
+}
 function onCreate() {
-	enabled = getModSetting('combomilestone');
+	enabled = getSetting('combomilestone', false);
 	if (!enabled) return Function_Continue;
 	
 	milestoneGroup = new FlxTypedSpriteGroup();
