@@ -307,7 +307,6 @@ function resultsScreen(inst) {
 	inst.add(grpInfoTexts);
 	
 	var difficulty:String = Difficulty.getString();
-	difficulty = 'enis';
 	var diffImg = Paths.image('resultScreen/dif' + difficulty);
 	if (diffImg == null) diffImg = Paths.image('resultScreen/difUnknown');
 	var diffText:FlxSprite = new FlxSprite().loadGraphic(diffImg);
