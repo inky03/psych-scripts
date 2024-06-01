@@ -5,3 +5,4 @@ its really weird and you cant save or load right now!!
     <img src='../screens/charter_full.png' alt='full view' width='480'/>
   </div>
 </div>
+(all things subject to change)

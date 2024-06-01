@@ -21,13 +21,12 @@ var quant:Array = [4, 8, 12, 16, 20, 24, 32, 48, 64, 96, 192];
 
 var chartingGui = null;
 var frontNotes = null;
-var backNotes = null;
 var killNotes:Array = [];
 var removeNotes:Array = [];
-var sectionNotes:Array = []; //for the notes that wait eagerly to respawn
+var sectionNotes:Array = [];
+var tospawnNotes:Array = [];
 var spawnedSectionNotes:Map = [];
 var spawnedSections:Map = [];
-var heldSections:Array = [];
 var heldNotes:Array = [];
 var gridLines = null;
 var grid = null;
@@ -92,28 +91,6 @@ function onCreate() {
 	}
 	charterPaused = true;
 }
-function createSus(mynote, length) {
-	if (length < 1 - 1 / 192) return;
-	var mybody = new Note(mynote.strumTime, mynote.noteData, null, true, true);
-	mybody.mustPress = mynote.mustPress;
-	mybody.extraData.set('length', length);
-	mybody.extraData.set('startStep', mynote.strumTime);
-	mybody.extraData.set('parent', mynote);
-	
-	var mytail = new Note(mynote.strumTime + length, mynote.noteData, null, true, true);
-	mytail.mustPress = mynote.mustPress;
-	mytail.animation.play(inArray(Note.colArray, mynote.noteData) + 'holdend', true);
-	mytail.scale.y = 1;
-	mytail.updateHitbox();
-	mytail.extraData.set('isTail', true);
-	mytail.extraData.set('startStep', mynote.strumTime);
-	mytail.extraData.set('parent', mynote);
-	
-	mybody.extraData.set('tailOff', mytail.height);
-	
-	mynote.extraData.set('body', mybody);
-	mynote.extraData.set('tail', mytail);
-}
 function mapSections() {
 	var sectionBeats:Int = 4;
 	var beat:Int = 0;
@@ -136,7 +113,7 @@ function mapSections() {
 		var oldBeat = beat;
 		beat += sectionBeats;
 		tempSections.push({start: oldBeat * 4, end: beat * 4});
-		sectionNotes.push({id: i, notes: [], startStep: oldBeat * 4, endStep: Math.NEGATIVE_INFINITY});
+		sectionNotes.push({id: i, notes: [], startStep: oldBeat * 4, endStep: oldBeat});
 		i ++;
 	}
 	//testing
@@ -164,7 +141,7 @@ function mapSections() {
 			var mynote = new Note(step, data % 4, null, false, true);
 			mynote.mustPress = (mustHit == (data < 4));
 			
-			createSus(mynote, length);
+			noteMakeSustain(mynote, length);
 			tempNotes.push(mynote);
 			
 			var a:Int = 0;
@@ -235,9 +212,9 @@ function onCreatePost() {
 	downscroll = ClientPrefs.data.downScroll;
 	
 	var i = 0;
-	var base_x = (FlxG.width - (112 * game.strumLineNotes.members.length)) * .5;
+	var base_strum_x = (FlxG.width - (112 * game.strumLineNotes.members.length)) * .5;
 	for (strum in game.strumLineNotes.members) {
-		strum.x = base_x + 112 * i;
+		strum.x = base_strum_x + 112 * i;
 		strum.scrollFactor.set(1, 1);
 		i ++;
 	}
@@ -277,9 +254,6 @@ function onCreatePost() {
 	frontNotes = new FlxTypedSpriteGroup();
 	frontNotes.cameras = [game.camHUD];
 	game.insert(game.members.indexOf(game.noteGroup) + 1, frontNotes);
-	backNotes = new FlxTypedSpriteGroup();
-	backNotes.cameras = [game.camHUD];
-	game.insert(game.members.indexOf(game.noteGroup) + 1, backNotes);
 	
 	var border:Int = 25;
 	for (grp in [game.opponentStrums.members, game.playerStrums.members]) {
@@ -310,13 +284,12 @@ function onCreatePost() {
 	
 	base_yo = base_strum.height * .5;//112 * mult * .5;
 	
-	updateUIPos(base_x, base_y);
-	game.camZooming = true;
-	
+	//game.camHUD.flashSprite.scaleY = -1; note to self
 	mapSections();
 	makeTexts();
 	doBPMChanges(false);
 	conductorStuffs(false);
+	updateUIPos(base_x, base_y);
 	
 	return Function_Continue;
 }
@@ -333,6 +306,7 @@ function makeTexts() {
 	diffSprite.antialiasing = ClientPrefs.data.antialiasing;
 	diffSprite.setGraphicSize(diffSprite.width * .5);
 	diffSprite.updateHitbox();
+	diffSprite.alpha = .75;
 	chartingGui.add(diffSprite);
 	
 	titleText = new Alphabet(diffSprite.width + 32, 10, PlayState.SONG.song);
@@ -340,7 +314,7 @@ function makeTexts() {
 	titleText.alpha = .75;
 	chartingGui.add(titleText);
 	
-	var warningText = simpleText(8, 56, '!! WARNING WARNING WARNING WARNING !!\nyou can\'t save/load songs in the current state!!', 18);
+	var warningText = simpleText(8, 56, '!! WARNING WARNING WARNING !!\nyou can\'t save/load songs in the current state!!', 18);
 	warningText.alpha = .75;
 	warningText.color = 0xffff80a0;
 	chartingGui.add(warningText);
@@ -378,7 +352,7 @@ function updateTexts() {
 	'\nstep: ' + curStep +
 	'\nbeat: ' + curBeat +
 	'\nbar: ' + curSection: '') +
-	'\nnotes spawned: ' + (frontNotes.length + backNotes.length);
+	'\nnotes spawned: ' + frontNotes.length + ' (' + tospawnNotes.length + ' queued)';
 	chartingInfoText.y = FlxG.height - chartingInfoText.height - 8;
 }
 function isSection(beat) return sectionQ.contains(beat);
@@ -482,34 +456,27 @@ function spawnSections(sec) {
 	var i = 0;
 	for (section in sectionNotes) {
 		var k = section.id;
-		var onscreen:Bool = heldSections.contains(section) || ((section.startStep - curDecStep < 64) && (section.endStep - curDecStep > -32));
+		var onscreen:Bool = ((section.startStep - curDecStep < 64) && (section.endStep - curDecStep > -32));
 		i ++;
 		if (onscreen) {
-			if (spawnedSectionNotes.exists(k)) continue;
-			for (note in section.notes) {
-				var grp = (note.strumTime > curDecStep ? frontNotes : backNotes);
-				grp.add(note);
-				if (note.extraData.get('body') != null) {
-					frontNotes.insert(0, note.extraData.get('body'));
-					frontNotes.insert(0, note.extraData.get('tail'));
+			if (!spawnedSectionNotes.exists(k)) {
+				spawnedSectionNotes.set(k, section.notes);
+				for (note in section.notes) {
+					if (note == null || !note.exists) { //clean dead notes (just in case)
+						removeNotes.push(note);
+						continue;
+					}
+					if (!tospawnNotes.contains(note)) tospawnNotes.push(note);
+				}
+				while (removeNotes.length > 0) {
+					var i = removeNotes.shift();
+					section.notes.remove(i);
 				}
 			}
-			spawnedSectionNotes.set(k, true);
 			continue;
 		}
-		if (spawnedSectionNotes.exists(k)) {
-			for (note in section.notes) {
-				note.active = false;
-				for (grp in [frontNotes, backNotes]) {
-					grp.remove(note, true);
-					if (note.extraData.get('body') != null) {
-						frontNotes.remove(note.extraData.get('body'), true);
-						frontNotes.remove(note.extraData.get('tail'), true);
-					}
-				}
-			}
-			spawnedSectionNotes.remove(k);
-		}
+		for (note in section.notes) tospawnNotes.remove(note);
+		spawnedSectionNotes.remove(k);
 	}
 }
 function coolStepHit() {}
@@ -658,7 +625,7 @@ function onEndSong() {
 function updateUIPos(x, y) {
 	for (strum in game.strumLineNotes) strum.y = y;
 	quantSprite.y = y + base_yo - quantSprite.height * .5;
-	quantText.y = y + base_yo - quantText.fieldHeight * .5 - 2;
+	quantText.y = y + base_yo - quantText.height * .5 - 2;
 	game.camHUD.scroll.x = x;
 }
 function updateQuant(add) {
@@ -692,10 +659,9 @@ function onUpdatePost(e) {
 	if (FlxG.keys.justPressed.LEFT) updateQuant(-1);
 	if (FlxG.keys.justPressed.RIGHT) updateQuant(1);
 	
-	if (FlxG.keys.firstPressed() >= 0) spamTimer += e; else spamTimer = -1;
+	if (FlxG.keys.firstPressed() >= 0) spamTimer += e; else spamTimer = -1; //scrolling
 	if (FlxG.keys.firstJustPressed() >= 0) spamTimer = 0;
-	
-	var hit:Bool = (spamTimer == 0); //scrolling
+	var hit:Bool = (spamTimer == 0);
 	var spam:Bool = (spamTimer >= .5);
 	var off:Float = (charterPaused ? 1 : (e * 1000 + 2));
 	
@@ -776,14 +742,7 @@ function onUpdatePost(e) {
 					updateMusicPos();
 				}
 			}
-			game.remove(backNotes);
-			game.insert(game.members.indexOf(game.noteGroup) - 1, backNotes);
-		} else {
-			FlxG.sound.play(Paths.sound('pauseSong'), 1);
-			
-			game.remove(backNotes);
-			game.insert(game.members.indexOf(game.noteGroup) + 1, backNotes);
-		}
+		} else FlxG.sound.play(Paths.sound('pauseSong'), 1);
 	}
 	
 	uiBoom += (1 - uiBoom) * (1 - Math.exp(-e * 7));
@@ -794,30 +753,36 @@ function onUpdatePost(e) {
 	game.camGame.scroll.y = game.camFollow.y - FlxG.height * .5;
 	
 	// ui positioning
+	var diff = (uiScale - uiSmoothScale);
+	var updatePos:Bool = (diff > .0005);
 	if (FlxG.mouse.wheel != 0) {
 		uiScale += FlxG.mouse.wheel * .05;
 		uiScale = Math.round(uiScale / .05) * .05;
-		uiScale = Math.max(Math.min(uiScale, FlxG.width / gridWidth), .5);
+		uiScale = Math.max(Math.min(uiScale, FlxG.width / gridWidth), .35);
+		updatePos = true;
 	}
-	uiSmoothScale += (uiScale - uiSmoothScale) * (1 - Math.exp(-e * 9));
+	uiSmoothScale += diff * (1 - Math.exp(-e * 9));
 	
-	var maxX = (FlxG.width - gridWidth * uiSmoothScale) * .5 / game.camHUD.zoom;
-	var maxHeight = FlxG.height / uiSmoothScale;
-	var uiOffset = (FlxG.height - maxHeight) * .5; //displacement from ui center
-	
-	var clamp_x = Math.max(Math.min(base_x, maxX), -maxX);
-	var clamp_y = Math.max(Math.min(base_y, maxHeight - base_strum.height + uiOffset), uiOffset);
-	
+	var clamp_x:Float = base_x;
+	var clamp_y:Float = base_y;
 	if (FlxG.mouse.pressed) {
 		base_x -= FlxG.mouse.deltaScreenX;
 		base_y += FlxG.mouse.deltaScreenY;
+		updatePos = true;
+	}
+	if (FlxG.mouse.justReleased) updatePos = true;
+	if (updatePos) {
+		var maxX:Float = (FlxG.width - gridWidth * uiSmoothScale) * .5 / game.camHUD.zoom;
+		var maxHeight:Float = FlxG.height / uiSmoothScale;
+		var uiOffset:Float = (FlxG.height - maxHeight) * .5; //displacement from ui center
 		clamp_x = Math.max(Math.min(base_x, maxX), -maxX);
 		clamp_y = Math.max(Math.min(base_y, maxHeight - base_strum.height + uiOffset), uiOffset);
-	} else {
-		base_y = clamp_y;
-		base_x = clamp_x;
+		updateUIPos(clamp_x, clamp_y);
+		if (!FlxG.mouse.pressed) {
+			base_x = clamp_x;
+			base_y = clamp_y;
+		}
 	}
-	updateUIPos(clamp_x, clamp_y);
 	
 	if (FlxG.mouse.pressedRight) {
 		var w = FlxG.mouse.x - selectionBox.x;
@@ -847,6 +812,24 @@ function onUpdatePost(e) {
 	charting();
 	
 	//ass note movement
+	for (note in tospawnNotes) {
+		if (!noteIsOnRange(note)) continue;
+		
+		removeNotes.push(note);
+		if (frontNotes.members.contains(note)) continue;
+		
+		frontNotes.add(note);
+		var body = note.extraData.get('body');
+		if (body != null && !frontNotes.members.contains(body)) {
+			frontNotes.insert(0, body);
+			frontNotes.insert(0, note.extraData.get('tail'));
+		}
+	}
+	while (removeNotes.length > 0) {
+		var note = removeNotes.shift();
+		tospawnNotes.remove(note);
+	}
+	
 	var offsetPos:Float = Conductor.songPosition - 1;
 	for (note in frontNotes) {
 		var grp = (note.mustPress ? game.playerStrums : game.opponentStrums);
@@ -857,18 +840,27 @@ function onUpdatePost(e) {
 		
 		var gone:Bool = false;
 		if (note.isSustainNote) {
-			if (charterPaused || note.extraData.get('held')) {
-				var par = note.extraData.get('parent');
-				var clipY:Float = par.y + par.height * .5;
+			var par = note.extraData.get('parent');
+			var held = note.extraData.get('held');
+			if (!held) {
+				if ((curDecStep > note.extraData.get('endStep') + 16 || curDecStep < note.strumTime) && !noteIsOnRange(par)) {
+					killNotes.push(note);
+					continue;
+				}
+			}
+			var clipY:Float = par.y + par.height * .5;
+			if (charterPaused || held) {
 				if (downscroll) clipY = Math.min(clipY, strum.y + 112 * 4 + strum.height * .5);
 				else clipY = Math.max(clipY, strum.y - 112 * 4 + strum.height * .5);
-				clipNote(note, clipY);
+				clipNote(note, clipY, false);
 				note.alpha = note.multAlpha;
 				continue;
 			}
-			clipNote(note, strum.y + strum.height * .5);
+			if (downscroll) clipY = Math.min(clipY, strum.y + strum.height * .5);
+			else clipY = Math.max(clipY, strum.y + strum.height * .5);
+			clipNote(note, clipY, false);
 			gone = (curDecStep > note.extraData.get('startStep') + stepOffset);
-			if (gone && note.clipRect.height > 1) {
+			if (gone && note.clipRect != null && note.clipRect.height > 1) {
 				strum.playAnim('confirm', true);
 				strum.playAnim('hit', true);
 				strum.resetAnim = 4 / 24 / game.playbackRate;
@@ -876,8 +868,11 @@ function onUpdatePost(e) {
 			continue;
 		} else gone = (curDecStep > note.strumTime + stepOffset);
 		
-		var smoothAlpha:Float = Math.max(Math.min(16 - Math.abs((curDecStep - note.strumTime) * .5 + 8), 1), 0);
-		note.alpha = smoothAlpha * note.multAlpha;
+		var alpha:Float = getNoteAlpha(note);
+		if (!noteIsOnRange(note)) {
+			killNotes.push(note);
+			continue;
+		}
 		
 		if (gone != note.extraData.get('gone')) {
 			if (gone) {
@@ -890,51 +885,25 @@ function onUpdatePost(e) {
 					strum.resetAnim = ((note.tail.length > 0 && !end) ? 0 : (note.isSustainNote && !end ? 0 : (4 / 24 / game.playbackRate)));
 					if (!note.isSustainNote) playSound(Paths.sound('hitsound'), .8);
 				}
-				removeNotes.push(note);
-				//frontNotes.remove(note, true);
 			}
 			note.extraData.set('gone', gone);
 		}
+		
+		note.alpha = Math.min(alpha, 1) * note.multAlpha * (gone ? .3 : 1);
 	}
 	kills(frontNotes);
-	while (removeNotes.length > 0) {
-		var note = removeNotes.shift();
-		frontNotes.remove(note, true);
-		backNotes.add(note);
-		//debugPrint('buddy');
-	}
-	
-	for (note in backNotes) {
-		var grp = (note.mustPress ? game.playerStrums : game.opponentStrums);
-		var strum = inArray(grp.members, note.noteData);
-		if (strum == null) continue;
-		
-		noteFollowStrum(note, strum);
-		var smoothAlpha:Float = Math.max(Math.min(16 - Math.abs((curDecStep - note.strumTime) * .5 + 8), 1), 0);
-		note.alpha = smoothAlpha * note.multAlpha * .3;
-		
-		var gone:Bool = (curDecStep > note.strumTime + stepOffset);
-		if (gone != note.extraData.get('gone')) {
-			if (!gone) {
-				note.alpha *= 5;
-				removeNotes.push(note);
-				if (note.isSustainNote) clipNote(note, strum);
-			}
-			note.extraData.set('gone', gone);
-		}
-	}
-	while (removeNotes.length > 0) {
-		var note = removeNotes.shift();
-		backNotes.remove(note);
-		frontNotes.add(note);
-	}
 	
 	updateTexts();
 	while (sounds.length > 0) sounds.shift();
 	return Function_Continue;
 }
+function noteIsOnRange(note) {
+	return (getNoteAlpha(note) > 0 || (curDecStep > note.strumTime && note.strumTime + note.sustainLength - curDecStep > -16));
+}
+function getNoteAlpha(note) {
+	return (12 - Math.abs((curDecStep - note.strumTime) * .5 + 4));
+}
 function charting() {
-	//charting doesnt actually work properly right now lol
 	//1: 49 / 9: 57
 	var i = 0;
 	var step:Float = Math.round(curDecStep * curQuant / 16) / curQuant * 16;
@@ -945,24 +914,22 @@ function charting() {
 		var data:Int = i % 4;
 		if (FlxG.keys.anyJustPressed([k])) {
 			var make:Bool = true;
-			for (grp in [frontNotes, backNotes]) {
-				for (note in grp) {
-					if (note.isSustainNote || note.mustPress != mustHit || note.noteData != data) continue;
-					if (Math.abs(note.strumTime - step) < quant) {
-						var body = note.extraData.get('body');
-						if (body != null) {
-							frontNotes.remove(body, true);
-							body.destroy();
-							var tail = note.extraData.get('tail');
-							frontNotes.remove(tail, true);
-							tail.destroy();
-						}
-						section.notes.remove(note);
-						grp.remove(note, true);
-						note.destroy();
-						make = false;
-						break;
+			for (note in frontNotes) {
+				if (note.isSustainNote || note.mustPress != mustHit || note.noteData != data) continue;
+				if (Math.abs(note.strumTime - step) < quant) {
+					var body = note.extraData.get('body');
+					if (body != null) {
+						frontNotes.remove(body, true);
+						body.destroy();
+						var tail = note.extraData.get('tail');
+						frontNotes.remove(tail, true);
+						tail.destroy();
 					}
+					section.notes.remove(note);
+					frontNotes.remove(note, true);
+					note.destroy();
+					make = false;
+					break;
 				}
 			}
 			if (make) {
@@ -976,21 +943,50 @@ function charting() {
 		var released:Bool = FlxG.keys.anyJustReleased([k]);
 		if (FlxG.keys.anyPressed([k]) || released) {
 			for (note in heldNotes) {
+				var length = Math.round((curDecStep - note.strumTime) * curQuant / 16) / curQuant * 16;
 				var body = note.extraData.get('body');
 				if (released && note.mustPress == mustHit && note.noteData == data) {
 					if (body != null) {
 						body.extraData.remove('held');
+						body.extraData.set('endStep', note.strumTime + length);
 						note.extraData.get('tail').extraData.remove('held'); //lol
+						note.extraData.get('tail').extraData.set('endStep', note.strumTime + length);
 					}
-					debugPrint('unheld');
+					//debugPrint('unheld');
 					heldNotes.remove(note);
 					break;
 				}
-				noteChangeLength(note, Math.round((curDecStep - note.strumTime) * curQuant / 16) / curQuant * 16, true);
+				noteChangeLength(note, length, true);
 			}
 		}
 		i ++;
 	}
+}
+function noteMakeSustain(mynote, length) {
+	if (length < 1 - 1 / 192) return;
+	mynote.sustainLength = length;
+	
+	var mybody = new Note(mynote.strumTime, mynote.noteData, null, true, true);
+	mybody.mustPress = mynote.mustPress;
+	mybody.extraData.set('length', length);
+	mybody.extraData.set('startStep', mynote.strumTime);
+	mybody.extraData.set('endStep', mynote.strumTime + length);
+	mybody.extraData.set('parent', mynote);
+	
+	var mytail = new Note(mynote.strumTime + length, mynote.noteData, null, true, true);
+	mytail.mustPress = mynote.mustPress;
+	mytail.animation.play(inArray(Note.colArray, mynote.noteData) + 'holdend', true);
+	mytail.scale.y = mytail.scale.x;
+	mytail.updateHitbox();
+	mytail.extraData.set('isTail', true);
+	mytail.extraData.set('startStep', mynote.strumTime);
+	mytail.extraData.set('endStep', mynote.strumTime + length);
+	mytail.extraData.set('parent', mynote);
+	
+	mybody.extraData.set('tailOff', mytail.height);
+	
+	mynote.extraData.set('body', mybody);
+	mynote.extraData.set('tail', mytail);
 }
 function noteChangeLength(note, steps, hold) {
 	if (note == null) return;
@@ -1000,20 +996,22 @@ function noteChangeLength(note, steps, hold) {
 	if (length > quant && length >= 1) {
 		//length wont be shorter than 1 step so to not make it visible,
 		//but note lengths shorter than a step should also be very much possible!
+		note.sustainLength = length;
 		if (body == null) {
-			createSus(note, length);
+			noteMakeSustain(note, length);
 			if (hold) {
 				note.extraData.get('body').extraData.set('held', true);
 				note.extraData.get('tail').extraData.set('held', true);
 			}
 			frontNotes.insert(0, note.extraData.get('body'));
 			frontNotes.insert(0, note.extraData.get('tail'));
-			debugPrint('CREATE');
+			//debugPrint('CREATE HOLD');
 		} else {
 			body.extraData.set('length', length);
 			note.extraData.get('tail').strumTime = note.strumTime + length;
 		}
 	} else {
+		note.sustainLength = 0;
 		if (body != null) {
 			frontNotes.remove(body, true);
 			body.destroy();
@@ -1022,7 +1020,7 @@ function noteChangeLength(note, steps, hold) {
 			frontNotes.remove(tail, true);
 			tail.destroy();
 			note.extraData.set('tail', null);
-			debugPrint('DESTROY');
+			//debugPrint('DESTROY HOLD');
 		}
 	}
 }
@@ -1031,7 +1029,7 @@ function kills(group) {
 		var note = killNotes.shift();
 		removeNotes.remove(note);
 		group.remove(note, true);
-		note.destroy();
+		if (!note.isSustainNote) tospawnNotes.push(note);
 	}
 }
 function noteFollowStrum(note, strum) {
@@ -1046,22 +1044,18 @@ function noteFollowStrum(note, strum) {
 		note.distance += note.height * downscrollMult; //omfg
 	}
 	else if (note.isSustainNote) {
-		var funnieHeight = note.frameHeight - 10;
+		var funnieHeight = note.frameHeight - (note.antialiasing ? Math.min(note.frameHeight * .25, 4) : 0); //"fixes" that blurriness at the end of the hold
 		note.scale.y = Math.max((112 * note.extraData.get('length') * .25 - note.extraData.get('tailOff')) / funnieHeight, 0);
 		note.updateHitbox();
 		if (downscroll) note.y -= note.height;
 	}
+	return true;
 }
-function clipNote(note, y) {
+function clipNote(note, y, flip) {
 	if (note == null || y == null) return;
-	var funnieHeight:Float = note.frameHeight - (note.extraData.get('isTail') ? 0 : 10);
-	var clipPoint = Math.max(Math.min( (downscroll ? note.y - y + note.height : y - note.y) / note.scale.y , funnieHeight), 0);
+	var funnieHeight:Float = note.frameHeight - (note.extraData.get('isTail') || !note.antialiasing ? 0 : Math.min(note.frameHeight * .25, 4));
+	var clipPoint = Math.max(Math.min( ((downscroll == flip) ? y - note.y : note.y - y + note.height) / note.scale.y , funnieHeight), 0);
 	note.clipRect = new FlxRect(0, clipPoint, note.frameWidth, funnieHeight - clipPoint);
-}
-function reverseClipNote(note, strum) {
-	if (note == null || strum == null) return;
-	var clipPoint = Math.max(Math.min( (note.distance * (strum.downScroll ? -1 : 1) + 100) / note.scale.y + note.frameHeight , note.frameHeight), 0);
-	note.clipRect = new FlxRect(0, 0, note.frameWidth, note.frameHeight - clipPoint);
 }
 
 //math
