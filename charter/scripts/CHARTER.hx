@@ -8,17 +8,19 @@ import flixel.group.FlxTypedSpriteGroup;
 import flixel.math.FlxRect;
 import openfl.text.TextFormat;
 import backend.Difficulty;
+import tjson.TJSON as JSON;
 
 import flixel.addons.ui.FlxUI;
 import flixel.addons.ui.FlxUIButton;
 
 using StringTools;
 
-var base_strum = null;
+var waveforms:Bool = true;
 
 var curQuant:Int = 4;
 var quant:Array = [4, 8, 12, 16, 20, 24, 32, 48, 64, 96, 192];
 
+var base_strum = null;
 var chartingGui = null;
 var frontNotes = null;
 var killNotes:Array = [];
@@ -28,12 +30,15 @@ var tospawnNotes:Array = [];
 var spawnedSectionNotes:Map = [];
 var spawnedSections:Map = [];
 var heldNotes:Array = [];
-var gridLines = null;
 var grid = null;
 var selectionBox = null;
 var selectionLine = null;
 var quantSprite = null;
 var quantText = null;
+var chartingInfoText = null;
+var diffSprite = null;
+var titleText = null;
+var songDifficulty = '';
 
 var smoothGridY = 0;
 var gridWidth = 0;
@@ -60,7 +65,6 @@ var beatCrochet = 0;
 
 var sectionLength:Int = 4;
 var curSection:Int = -1;
-var prevBeat:Int = -1;
 var curBeat:Int = -1;
 var curStep:Int = -1;
 var curDecStep:Int = 0;
@@ -68,6 +72,95 @@ var stepOffset:Float = 0;
 
 var sounds:Array = []; //avoid audio stress
 
+function noteDestroyHold(note) {
+	var body = note.extraData.get('body');
+	if (body != null && body.exists) {
+		frontNotes.remove(body, true);
+		body.destroy();
+		var tail = note.extraData.get('tail');
+		frontNotes.remove(tail, true);
+		tail.destroy();
+	}
+}
+function reset() {
+	while (tospawnNotes.length > 0) {
+		var note = tospawnNotes.shift();
+		noteDestroyHold(note);
+		note.destroy();
+	}
+	while (frontNotes.members.length > 0) {
+		var note = frontNotes.members.shift();
+		noteDestroyHold(note);
+		note.destroy();
+	}
+	for (section in sectionNotes) {
+		for (note in section.notes) {
+			if (note.null || !note.exists) continue;
+			noteDestroyHold(note);
+			note.destroy();
+		}
+	}
+	for (grp in grid) {
+		while (grp.members.length > 0) {
+			var item = grp.members.shift();
+			item.destroy();
+		}
+	}
+	sections = [];
+	sectionQ = [];
+	sectionNotes = [];
+	bpmChanges = [];
+	sectionLength = 4;
+	curSection = -1;
+	curBeat = -1;
+	curStep = -1;
+	curDecStep = 0;
+	game.paused = true;
+	Conductor.songPosition = 0;
+	pauseMusic();
+	updateMusicPos();
+	curBpmChange = -1;
+	curSectionInfo = null;
+	charterPaused = true;
+	spawnedSectionNotes.clear();
+	spawnedSections.clear();
+	updateBPM(100);
+	updateTexts();
+	
+	if (diffSprite != null) {
+		diffSprite.destroy();
+		var diff = songDifficulty.toLowerCase();
+		var diffImage = Paths.image('menudifficulties/' + diff);
+		if (diffImage == null) diffImage = Paths.image('menudifficulties/normal');
+		diffSprite = new FlxSprite(12, 12).loadGraphic(diffImage);
+		diffSprite.antialiasing = ClientPrefs.data.antialiasing;
+		diffSprite.setGraphicSize(diffSprite.width * .5);
+		diffSprite.updateHitbox();
+		diffSprite.alpha = .75;
+		chartingGui.add(diffSprite);
+	}
+	if (titleText != null) {
+		titleText.destroy();
+		titleText = new Alphabet(diffSprite.width + 32, 10, PlayState.SONG.song);
+		titleText.setScale(.55);
+		titleText.alpha = .75;
+		chartingGui.add(titleText);
+	}
+	
+	var songData = PlayState.SONG;
+	debugPrint(songData.song);
+	debugPrint(Paths.inst(songData.song));
+	if (songData.needsVoices) {
+		var playerVocals = Paths.voices(songData.song, (game.boyfriend.vocalsFile == null || game.boyfriend.vocalsFile.length < 1) ? 'Player' : game.boyfriend.vocalsFile);
+		if (playerVocals == null) playerVocals = Paths.voices(songData.song);
+		game.vocals.loadEmbedded(playerVocals != null ? playerVocals : Paths.sound('null'));
+		
+		var oppVocals = Paths.voices(songData.song, (game.dad.vocalsFile == null || game.dad.vocalsFile.length < 1) ? 'Opponent' : game.dad.vocalsFile);
+		game.opponentVocals.loadEmbedded(oppVocals != null ? oppVocals : Paths.sound('null'));
+	}	
+	var inst = Paths.inst(songData.song);
+	FlxG.sound.music.loadEmbedded(inst);
+}
 function playSound(sound, vol) {
 	if (sound == null || sounds.contains(sound)) return;
 	FlxG.sound.play(sound, vol);
@@ -91,7 +184,7 @@ function onCreate() {
 	}
 	charterPaused = true;
 }
-function mapSections() {
+function initSong() {
 	var sectionBeats:Int = 4;
 	var beat:Int = 0;
 	var bpm:Int = Std.parseFloat(PlayState.SONG.bpm);
@@ -158,21 +251,101 @@ function mapSections() {
 		}
 	}
 	tempNotes.sort((a, b) -> return a.strumTime - b.strumTime);
-	sectionBeats = 4; //lol
+	//sectionBeats = 4; //lol
 	/*while (ms < FlxG.sound.music.length) { //fill in missing sections
 		sections.push({beat: beat, beatLength: sectionBeats, changeBeats: false});
 		sectionQ.push(beat);
 		beat += sectionBeats;
 		debugPrint('clone section');
 	}*/
+	Conductor.songPosition = 0;
+	conductorStuffs(false);
+	doBPMChanges(false);
+	
 	return sections;
 }
 function sortBpmChanges() bpmChanges.sort((a, b) -> a.beat - b.beat);
 function onDestroy() {
 	FlxG.mouse.visible = false;
 	Main.fpsVar.alpha = 1;
+	FlxG.stage.window.onDropFile.remove(fileDrop);
 }
+function getFileInfo(path) {
+	var p = path.lastIndexOf('.');
+	if (path.lastIndexOf('/') < p && path.lastIndexOf('\\') < p) return {filename: path.substring(0, p), filetype: path.substring(p + 1, path.length).toLowerCase()};
+	return {filename: path, filetype: ''};
+}
+function getSongDifficulty(path) { //difficulty guesser
+	var fileInfo = getFileInfo(path);
+	var fileType:String = fileInfo.filetype;
+	var songName:String = fileInfo.filename.replace('\\', '/');
+	songName = songName.substring(songName.lastIndexOf('/') + 1, songName.length);
+	
+	var songPre = fileInfo.filename.replace('\\', '/');
+	var p = songPre.lastIndexOf('/');
+	songPre = songPre.substring(songPre, p);
+	songPre = songPre.substring(songPre.lastIndexOf('/') + 1, songPre.length);
+	var diff = 'Normal';
+	if (songName.startsWith(songPre)) {
+		diff = songName.replace(songPre, '');
+		if (diff.indexOf('-') == 0) return diff.substring(1, diff.length);
+		return 'Normal';
+	} else {
+		diff = songName;
+		if (diff.lastIndexOf('-') > 0) return diff.substring(diff.lastIndexOf('-') + 1, diff.length);
+		return 'Normal';
+	}
+}
+function getSong(path) {
+	var fileInfo = getFileInfo(path);
+	var fileType:String = fileInfo.filetype;
+	var songName:String = fileInfo.filename.replace('\\', '/');
+	songName = songName.substring(songName.lastIndexOf('/') + 1, songName.length);
+	switch (fileType) {
+		case 'json':
+			songDifficulty = getSongDifficulty(path);
+			var content = File.getContent(path);
+			if (content != null) {
+				var json = JSON.parse(content);
+				if (json != null && json.song != null) {
+					if (json.song.events == null) json.song.events = [];
+					PlayState.SONG = json.song;
+					reset();
+					initSong();
+				}
+			}
+		case '':
+			if (FileSystem.isDirectory(path)) {
+				var files = FileSystem.readDirectory(path);
+				var normal = '';
+				for (file in files) {
+					var fpath = path + '/' + file;
+					fileInfo = getFileInfo(fpath);
+					var diff = songDifficulty;
+					if (getFileInfo(file).filename == songName) normal = path + '/' + file;
+					if (file.startsWith(songName) && fileInfo.filename.endsWith('-' + diff.toLowerCase())) {
+						songDifficulty = diff;
+						getSong(fpath);
+						return;
+					}
+				}
+				songDifficulty = 'Normal';
+				if (FileSystem.exists(normal)) getSong(normal);
+			}
+		default:
+			debugPrint('invalid');
+	}
+}
+function fileDropped(path) {
+	getSong(path);
+	//debugPrint('file dropped (' + fileType + ')');
+}
+function fileDrop(path) game.callOnHScript('fileDropped', [path]); //allow error testing
 function onCreatePost() {
+	//FlxG.stage.window.onDropFile.removeAll();
+	FlxG.stage.window.onDropFile.add(fileDrop);
+	songDifficulty = Difficulty.getString();
+	
 	var loadBtn = new FlxUIButton(10, 10, 'Load Song', () -> {});
 	loadBtn.resize(120, 24);
 	loadBtn.setLabelFormat('vcr.ttf', 15, -1);
@@ -244,9 +417,6 @@ function onCreatePost() {
 	base_y = base_strum.y;
 	//game.songSpeed = 1;
 	//game.songSpeed = 1 / .45 / stepCrochet * 112;
-	gridLines = new FlxTypedSpriteGroup();
-	gridLines.cameras = [game.camHUD];
-	game.insert(gridPos + 1, gridLines);
 	
 	game.dad.setPosition(-game.boyfriend.width * .5, FlxG.height - game.dad.height * 1.5 - 100);
 	game.boyfriend.setPosition(FlxG.width - game.boyfriend.width * 2, FlxG.height - game.boyfriend.height * 1.5 - 100);
@@ -285,24 +455,20 @@ function onCreatePost() {
 	base_yo = base_strum.height * .5;//112 * mult * .5;
 	
 	//game.camHUD.flashSprite.scaleY = -1; note to self
-	mapSections();
+	initSong();
 	makeTexts();
-	doBPMChanges(false);
-	conductorStuffs(false);
 	updateUIPos(base_x, base_y);
 	
 	return Function_Continue;
 }
 
-var chartingInfoText = null;
-var titleText = null;
 function makeTexts() {
 	chartingGui = new FlxTypedSpriteGroup();
 	chartingGui.cameras = [game.camOther];
 	game.add(chartingGui);
 	
-	var diff = Difficulty.getString().toLowerCase();
-	var diffSprite = new FlxSprite(12, 12).loadGraphic(Paths.image('menudifficulties/' + diff));
+	var diff = songDifficulty.toLowerCase();
+	diffSprite = new FlxSprite(12, 12).loadGraphic(Paths.image('menudifficulties/' + diff));
 	diffSprite.antialiasing = ClientPrefs.data.antialiasing;
 	diffSprite.setGraphicSize(diffSprite.width * .5);
 	diffSprite.updateHitbox();
@@ -346,7 +512,7 @@ function updateTexts() {
 	'\n' + sectionLength + '/4\n' +
 	(Conductor.songPosition >= 0 ?
 	'\n' +
-	'\ntime: ' + num_fixed(Conductor.songPosition / 1000, 2) + ' / ' + num_fixed(game.songLength / 1000, 2) + 's' +
+	'\ntime: ' + num_fixed(Conductor.songPosition * .001, 2) + ' / ' + num_fixed(game.songLength * .001, 2) + 's' +
 	/*'\nDEBUG MS -> STEP ' + num_fixed(stepFromMS(Conductor.songPosition), 2) +
 	'\nDEBUG NOTES SPAWNED ' + (frontNotes.length + backNotes.length) +*/
 	'\nstep: ' + curStep +
@@ -397,6 +563,21 @@ function makeGrid(section) {
 		gridLine.y = -gridLine.height * .5 - i * gridHeight / m * (downscroll ? 1 : -1);
 		gridLine.alpha = (i > 0 ? .125 : .65);
 		gridGrp.add(gridLine);
+	}
+	
+	if (waveforms) {
+		var startMS:Float = MSfromStep(sectionInfo.beat * 4);
+		var endMS:Float = MSfromStep((sectionInfo.beat + sectionInfo.beatLength) * 4);
+		var waveform = game.callOnHScript('makeWaveform', [game.vocals, startMS, endMS, gridWidth * .25, gridHeight * sectionBeats / 2, 2, 1.5, 0xff6080ff]);
+		if (waveform != Function_Continue) {
+			waveform.scale.y = 2;
+			waveform.scale.x = 2;
+			waveform.antialiasing = ClientPrefs.data.antialiasing;
+			waveform.updateHitbox();
+			waveform.x = (gridWidth - waveform.width) * .5;
+			waveform.alpha = .5;
+			gridGrp.add(waveform);
+		}
 	}
 	
 	var changesMeasure:Bool = false;
@@ -500,7 +681,7 @@ function scrollConductor(section, steps, offset) {
 	else curDecStep = Math.ceil(curDecStep);
 	curDecStep *= Math.abs(steps);
 	
-	Conductor.songPosition = msFromStep(curDecStep);
+	Conductor.songPosition = MSfromStep(curDecStep);
 	conductorStuffs(true);
 	updateMusicPos();
 }
@@ -558,7 +739,7 @@ function stepFromMS(ms) {
 	var msf = (ms - sub) / (BPMms(last.bpm) * .25) + off * 4;
 	return msf;
 }
-function msFromStep(step) {
+function MSfromStep(step) {
 	var add:Float = 0;
 	var off:Float = 0;
 	var last = null;
@@ -568,6 +749,7 @@ function msFromStep(step) {
 		off = change.beat;
 		last = change;
 	}
+	if (last == null) return 0;
 	return (BPMms(last.bpm) * .25) * (step - off * 4) + add;
 }
 function conductorStuffs(recalc) { //custom conductor
@@ -641,8 +823,19 @@ function updateQuant(add) {
 	return nextQuant;
 }
 function onUpdatePost(e) {
+	if (FlxG.keys.justPressed.Y) {
+		debugPrint('RELOAD SONG');
+		reset();
+		initSong();
+	}
+	
+	if (sections.length <= 0) {
+		debugPrint('no song');
+		return;
+	}
 	var downscrollMult = (downscroll ? 1 : -1);
 	
+	game.paused = charterPaused;
 	if (!charterPaused) {
 		var prevBPM = Conductor.bpm;
 		var stepLimit:Float = Math.ceil(curDecStep);
@@ -653,7 +846,7 @@ function onUpdatePost(e) {
 		curDecStep += fix;
 		//debugPrint(fix);
 		
-		conductorStuffs(false, 0);
+		conductorStuffs(false);
 	} else doBPMChanges(false);
 	
 	if (FlxG.keys.justPressed.LEFT) updateQuant(-1);
@@ -671,6 +864,7 @@ function onUpdatePost(e) {
 		if ((spam ? FlxG.keys.pressed.UP : FlxG.keys.justPressed.UP) || (spam ? FlxG.keys.pressed.DOWN : FlxG.keys.justPressed.DOWN)) {
 			var add:Int = ((spam ? FlxG.keys.pressed.UP : FlxG.keys.justPressed.UP) ? 1 : -1);
 			scrollConductor(curSection, add * downscrollMult * 16 / curQuant, off);
+			Conductor.songPosition = MSfromStep(curDecStep);
 			updateMusicPos();
 		}
 		var forwardKey = (downscroll ? 33 : 34);
@@ -679,7 +873,7 @@ function onUpdatePost(e) {
 			var beat = (curSectionInfo == null ? 4 : (curSectionInfo.beat + curSectionInfo.beatLength));
 			curDecStep = beat * 4;
 			conductorStuffs(true);
-			Conductor.songPosition = msFromStep(curDecStep);
+			Conductor.songPosition = MSfromStep(curDecStep);
 			updateMusicPos();
 		}
 		if (FlxG.keys.anyJustPressed([backKey]) || (FlxG.keys.anyPressed([backKey]) && spam)) { //go back a section
@@ -691,7 +885,7 @@ function onUpdatePost(e) {
 			}
 			curDecStep = beat * 4;
 			conductorStuffs(true);
-			Conductor.songPosition = msFromStep(curDecStep);
+			Conductor.songPosition = MSfromStep(curDecStep);
 			updateMusicPos();
 		}
 	}
@@ -718,13 +912,19 @@ function onUpdatePost(e) {
 		FlxG.sound.play(Paths.sound('cancelMenu'), 1);
 	}
 	
-	Conductor.songPosition = msFromStep(curDecStep);
+	var p = MSfromStep(curDecStep);
+	if (!charterPaused && Math.abs(p - Conductor.songPosition) > e * 1000 + 60) {
+		curDecStep = stepFromMS(Conductor.songPosition);
+		doBPMChanges(false);
+		conductorStuffs(false);
+		//updateMusicPos();
+	}
+	//Conductor.songPosition = MSfromStep(curDecStep);
 	if (charterPaused) {
 		game.canPause = true;
 		game.endingSong = false;
 		pauseMusic();
 	}
-	if (Math.abs(FlxG.sound.music.time - Conductor.songPosition) > e * 1000 + 100) updateMusicPos();
 	
 	if (FlxG.keys.justPressed.SPACE) {
 		for (strum in game.strumLineNotes) strum.playAnim('static');
@@ -732,6 +932,7 @@ function onUpdatePost(e) {
 		if (!charterPaused) {
 			if (Conductor.songPosition >= 0) {
 				if (curDecStep % 4 == 0) coolBeatHit(isSection(curBeat));
+				Conductor.songPosition = MSfromStep(curDecStep);
 				
 				if (Conductor.songPosition < FlxG.sound.music.length) {
 					FlxG.sound.music.time = Conductor.songPosition;
