@@ -11,8 +11,8 @@ all set! you can now change get properties with `object.property`, set propertie
 function onCreatePost()
 	reference = require(runHaxeCode('return Paths.modFolders("scripts/reference");'))
 	boyfriend = reference.new('boyfriend')
-    boyfriend.x = 200 --sets bf's x position to 200
-    boyfriend.y = boyfriend.x --sets bf's y position to bf's x position
-    boyfriend.scale('set', 4, 4) --< this is how you call a method! this calls scale.set on boyfriend to x:4 and y:4
+	boyfriend.x = 200 --sets bf's x position to 200
+	boyfriend.y = boyfriend.x --sets bf's y position to bf's x position
+	boyfriend.scale('set', 4, 4) --< this is how you call a method! this calls scale.set on boyfriend to x:4 and y:4
 end
 ```
