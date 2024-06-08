@@ -45,3 +45,4 @@ function getScrSetting(save, def) {
 		return getDefaultSetting(save, def);
 	}
 }
+setVar('scrPsychVer', version);

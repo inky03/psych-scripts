@@ -21,7 +21,7 @@ and more
   </div>
   <div class='column'>
     <img src='../screens/030ui_full.png' alt='full ui' width='380'/>
-    <img src='../screens/030ui_results_screen.png' alt='results screen' width='380'/>
+    <img src='../screens/030ui_results_screen.png' alt='results screen (OUTDATED)' width='380'/>
   </div>
   <div class='column'>
     <img src='../screens/030ui_fps_soundtray.png' alt='new fps and soundtray displays' width='380'/>
@@ -32,6 +32,7 @@ and more
 - [x] ratings
 - [x] new score system (only PBOT1 currently)
 - [ ] code cleanup :) **(IN PROGRESS)**
+- [ ] readd song header clipping in results screen
 - [ ] new pause menu?
 
 ### credits
