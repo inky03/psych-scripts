@@ -50,7 +50,7 @@ function onCreatePost() {
 		
 		i ++;
 	}
-	return Function_Continue;
+	return;
 }
 
 function inArray(array, pos) { //array access lags workaround???
@@ -72,10 +72,10 @@ function onSpawnNote(note) {
 }
 function onKeyRelease(k) {
 	var data = inArray(holdCovers, k + game.opponentStrums.length);
-	if (data == null) return Function_Continue;
+	if (data == null) return;
 	var cover = data.cover;
 	if (cover != null && cover.animation.curAnim.name != 'end') cover.visible = false;
-	return Function_Continue;
+	return;
 }
 function popCover(note, strum, cover, rgb) {
 	var strum = cover.strum;
@@ -173,7 +173,7 @@ function goodNoteHit(note) {
 		strum.resetAnim = ((note.tail.length > 0 || game.cpuControlled) ? Conductor.crochet : 0) / 1000;
 	}
 	coverLogic(note, false);
-	return Function_Continue;
+	return;
 }
 function onUpdate() {
 	for (n in game.notes) {
@@ -182,7 +182,7 @@ function onUpdate() {
 			coverLogic(n, true);
 		}
 	}
-	return Function_Continue;
+	return;
 }
 function onUpdatePost(e) {
 	while (playHits.length > 0) { //psych engine is a meanie
@@ -218,7 +218,7 @@ function onUpdatePost(e) {
 		}
 		if (instance.animation.curAnim.finished) instance.animation.play('loop', true);
 	}
-	return Function_Continue;
+	return;
 }
 
 //RGB FUNCTIONS CAUSE CUSTOMFLXCOLOR IS ASS

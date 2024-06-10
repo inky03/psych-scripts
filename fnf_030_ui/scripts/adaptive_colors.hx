@@ -15,6 +15,7 @@ function onCountdownStarted() {
 	if (Paths.image(tex) != null && !PlayState.isPixelStage) { 
 		shadeNotes = true;
 		for (strum in game.playerStrums) {
+			if (!strum.useRGBShader) continue;
 			var colors = grayColors(int2rgb(strum.rgbShader.r));
 			strumShades[strum.noteData] = ['miss' => colors, 'hit' => {fill: strum.rgbShader.r, darkfill: strum.rgbShader.r, ring: strum.rgbShader.b}];
 			strum.texture = tex;
@@ -22,6 +23,7 @@ function onCountdownStarted() {
 	}
 	for (note in game.unspawnNotes) {
 		if (note.mustPress && note.noteSplashData.r == -1) {
+			if (!note.rgbShader.enabled) continue;
 			var colors = splashColors(int2rgb(note.rgbShader.r));
 			note.noteSplashData.r = colors.fill;
 			note.noteSplashData.b = colors.ring;

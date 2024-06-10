@@ -124,6 +124,10 @@ function onCreatePost() {
 	oldifyBar(game.healthBar);
 	game.healthBar.barOffset.set(4, 4);
 	
+	var relayer:Array = [game.iconP2, game.iconP1, game.scoreTxt];
+	for (item in relayer) game.uiGroup.remove(item);
+	for (item in relayer) game.uiGroup.add(item); //:p
+	
 	return Function_Continue;
 }
 

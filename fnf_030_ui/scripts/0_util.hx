@@ -33,6 +33,7 @@ function getScrSetting(save, def) {
 	if (version < 7.2 && version >= 0.1) //is unsupported
 		return getDefaultSetting(save, def);
 	else if (scriptMod != null) {
+		if (FlxG.save.data.modSettings == null) return getDefaultSetting(save, def); //What
 		var settings = FlxG.save.data.modSettings.get(scriptMod);
 		if (settings != null && settings.exists(save)) return settings.get(save);
 		else return getDefaultSetting(save, def);

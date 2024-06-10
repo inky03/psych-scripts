@@ -9,6 +9,7 @@ TODO
 - fix other stuff
 */
 import Main;
+import flixel.effects.FlxFlicker;
 import flixel.sound.FlxSound;
 import flixel.util.FlxGradient;
 import flixel.addons.display.FlxBackdrop;
@@ -45,11 +46,11 @@ var resultsActive:Bool = false;
 var resultsMusic = null;
 var introSound = null;
 var rankDelay:Map = [
-	'PERFECT' => {music: 95 / 24, flash: 129 / 24, bf: 95 / 24},
-	'EXCELLENT' => {music: 0, flash: 122 / 24, bf: 95 / 24}, //its 97/24 but it wouldnt sync ;(
-	'GREAT' => {music: 5 / 24, flash: 109 / 24, bf: 95 / 24},
-	'GOOD' => {music: 3 / 24, flash: 107 / 24, bf: 95 / 24},
-	'SHIT' => {music: 2 / 24, flash: 186 / 24, bf: 95 / 24},
+	'PERFECT' => {music: 95 / 24, flash: 129 / 24, bf: 95 / 24, hi: 140 / 24},
+	'EXCELLENT' => {music: 0, flash: 122 / 24, bf: 95 / 24, hi: 140 / 24}, //its 97/24 but it wouldnt sync ;(
+	'GREAT' => {music: 5 / 24, flash: 109 / 24, bf: 95 / 24, hi: 129 / 24},
+	'GOOD' => {music: 3 / 24, flash: 107 / 24, bf: 95 / 24, hi: 127 / 24},
+	'SHIT' => {music: 2 / 24, flash: 186 / 24, bf: 95 / 24, hi: 207 / 24},
 ];
 
 var stickerImages:Array = [];
@@ -78,6 +79,7 @@ function onCreatePost() {
 		}
 	}
 	precacheStickers();
+	return;
 }
 function precacheStickers() {
 	var stickersPath:String = Paths.modFolders('images/transitionSwag/');
@@ -178,9 +180,9 @@ function onEndSong() {
 }
 
 function stickers(inst) {
-	debugPrint('make sticklers');
 	var grpStickers = new FlxTypedSpriteGroup();
 	grpStickers.scrollFactor.set();
+	grpStickers.camera = game.camOther;
 	
 	var xPos:Float = -100;
 	var yPos:Float = -100;
@@ -202,20 +204,20 @@ function stickers(inst) {
 		}
 	}
 	shuffleArray(grpStickers.members);
-	var i = 0;
+	var i:Int = 0;
 	for (sticker in grpStickers.members) {
 		var timing = FlxMath.remapToRange(i, 0, grpStickers.members.length, 0, 0.9);
+		var isLast:Bool = (i >= grpStickers.members.length - 1);
 		new FlxTimer().start(timing, () -> {
 			if (grpStickers == null) return;
 			FlxG.sound.play(inArray(stickerSounds, 0, stickerSounds.length - 1));
 			sticker.visible = true;
 			var frameTimer:Int = FlxG.random.int(0, 2);
-			var isLast:Bool = (i >= grpStickers.members.length - 1);
 			if (isLast) frameTimer = 2;
 			new FlxTimer().start((1 / 24) * frameTimer, () -> {
 				sticker.scale.x = sticker.scale.y = FlxG.random.float(0.97, 1.02);
 				if (isLast) {
-					new FlxTimer().start(1, () -> resultsClose(inst));
+					new FlxTimer().start(.5, () -> resultsClose(inst));
 				}
 			});
 		});
@@ -309,7 +311,6 @@ function spawnBf(inst) {
 				if (heartsPerfect == null) return;
 				heartsPerfect.anim.play('');
 				heartsPerfect.alpha = 1;
-				debugPrint('hearts <3');
 			}));
 		}
 	}
@@ -325,6 +326,11 @@ function resultsScreen(inst) {
 	inResults = true;
 	resultsActive = true;
 	game.playbackRate = 1;
+	game.camHUD.visible = true;
+	game.camHUD.alpha = 1;
+	for (grp in [game.noteGroup, game.uiGroup]) {
+		game.remove(grp);
+	}
 	
 	var newHi:Bool = false;
 	var percent:Float = game.ratingPercent;
@@ -471,11 +477,10 @@ function resultsScreen(inst) {
 	soundSystem.antialiasing = ClientPrefs.data.antialiasing;
 	soundSystem.frames = Paths.getSparrowAtlas('resultScreen/soundSystem');
 	soundSystem.animation.addByPrefix('anim', 'sound system', 24, false);
-	var hiscore:FlxSprite = new FlxSprite(310, 570);
+	var hiscore:FlxSprite = new FlxSprite(44, 557);//310, 570);
 	hiscore.antialiasing = ClientPrefs.data.antialiasing;
 	hiscore.frames = Paths.getSparrowAtlas('resultScreen/highscoreNew');
-	hiscore.animation.addByPrefix('anim', 'NEW HIGHSCORE', 24, true);
-	hiscore.animation.play('anim');
+	hiscore.animation.addByPrefix('anim', 'highscoreAnim0', 24, false);
 	hiscore.setGraphicSize(hiscore.width * .8);
 	hiscore.updateHitbox();
 	var resultsBar:FlxSprite = new FlxSprite().loadGraphic(Paths.image('resultScreen/topBarBlack'));
@@ -485,10 +490,12 @@ function resultsScreen(inst) {
 	//var b:FlxBitmapText = new FlxBitmapText(null, null, null, FlxBitmapFont.fromMonospace(Paths.image('resultScreen/alphabet'), characters, new FlxBasePoint(49, 62)));
 	//b.text = 'ABCDefgh';
 	
+	bg.camera = game.camHUD;
 	bg.scrollFactor.set();
 	inst.add(bg);
 	inst.add(bgFlash);
 	bgFlash.alpha = 0.0001;
+	bgFlash.camera = game.camHUD;
 	
 	var artist:String = PlayState.SONG.artist == null ? '' : (' by ' + PlayState.SONG.artist);
 	var songText:String = PlayState.isStoryMode ? WeekData.getCurrentWeek().storyName.toUpperCase() : (PlayState.SONG.song + artist);
@@ -498,6 +505,7 @@ function resultsScreen(inst) {
 	grpInfoTexts.setPosition(555, 187 - 75);//87
 	grpInfoTexts.alpha = .0001;
 	grpInfoTexts.scrollFactor.set();
+	grpInfoTexts.camera = game.camHUD;
 	
 	var difficulty:String = Difficulty.getString();
 	var diffImg = Paths.image('resultScreen/diff_' + difficulty.toLowerCase());
@@ -519,8 +527,10 @@ function resultsScreen(inst) {
 	
 	scrollHA = new FlxTypedSpriteGroup();
 	scrollHA.scrollFactor.set();
+	scrollHA.camera = game.camHUD;
 	scrollHB = new FlxTypedSpriteGroup();
 	scrollHB.scrollFactor.set();
+	scrollHB.camera = game.camHUD;
 	var rrank = (rank == 'SHIT' ? 'LOSS' : rank);
 	var rankImage = Paths.image('resultScreen/rankText/rankScroll' + rrank);
 	if (rankImage != null) {
@@ -545,21 +555,21 @@ function resultsScreen(inst) {
 	scrollV = new FlxBackdrop(rankImageB, 0x10, 0, 30);
 	scrollV.x = FlxG.width - 45;
 	scrollV.scrollFactor.set();
+	scrollV.camera = game.camHUD;
 	
 	clearImage = new FlxSprite(900 - 75, 400 - 75).loadGraphic(Paths.image('resultScreen/clearPercent/clearPercentText'));
 	clearImage.scrollFactor.set();
+	clearImage.camera = game.camHUD;
 	clearnumGrp = new FlxTypedSpriteGroup(965 - 75, 475 - 75);
 	clearnumGrp.scrollFactor.set();
+	clearnumGrp.camera = game.camHUD;
 	
-	for (i in [soundSystem, resultsBar, cats, score, hiscore, resultsTitle]) {
+	for (i in [resultsGf, resultsBf, grpInfoTexts, soundSystem, resultsBar, cats, score, hiscore, resultsTitle]) {
+		if (i == null) continue;
+		i.camera = game.camHUD;
 		i.scrollFactor.set();
 		i.alpha = .0001;
 		inst.add(i);
-	}
-	inst.insert(inst.members.indexOf(soundSystem), grpInfoTexts);
-	if (resultsBf != null) {
-		inst.insert(inst.members.indexOf(soundSystem) - 1, resultsBf);
-		if (resultsGf != null) inst.insert(inst.members.indexOf(resultsBf), resultsGf);
 	}
 	
 	createTally(inst, 375, 150, -1, totalHits); //i think its the total amount of notes you hit actually??
@@ -585,6 +595,7 @@ function resultsScreen(inst) {
 		num.animation.play(n == '' ? 'disabled' : Std.string(n));
 		num.alpha = .0001;
 		num.scrollFactor.set();
+		num.camera = game.camHUD;
 		scoreNums.push(num);
 		inst.add(num);
 		i ++;
@@ -596,7 +607,7 @@ function resultsScreen(inst) {
 	var resultsIntro = Paths.music('results' + rank + '-intro');
 	
 	var delayData = rankDelay.get(rank);
-	if (delayData == null) delayData = {music: 3.5, bf: 3.5, flash: 3.5};
+	if (delayData == null) delayData = {music: 3.5, bf: 3.5, flash: 3.5, hi: 3.5};
 	subTimers.push(new FlxTimer().start(delayData.bf, () -> { //bf delay
 		spawnBf(inst);
 		infoClearPercent.visible = true;
@@ -616,6 +627,7 @@ function resultsScreen(inst) {
 		inst.insert(inst.members.indexOf(bg) + 1, scrollHA);
 		inst.insert(inst.members.indexOf(bg) + 1, scrollHB);
 		inst.insert(inst.members.indexOf(resultsBf) + 1, scrollV);
+		FlxFlicker.flicker(scrollV, 2 / 24 * 3, 2 / 24, true);
 		
 		var speed:Float = 7;
 		scrollHA.velocity.set(Math.cos(scrollRad) * speed, Math.sin(scrollRad) * speed);
@@ -631,6 +643,13 @@ function resultsScreen(inst) {
 			FlxG.sound.list.add(introSound);
 		}
 	}));
+	if (newHi) {
+		subTimers.push(new FlxTimer().start(delayData.hi, () -> {
+			hiscore.alpha = 1;
+			hiscore.animation.play('anim', true);
+			hiscore.animation.finishCallback = () -> hiscore.animation.play('anim', true, false, 16);
+		}));
+	}
 	
 	resultsBar.alpha = 1;
 	FlxTween.tween(resultsBar, {y: resultsBar.y + resultsBar.height}, .4, {ease: FlxEase.quartOut, startDelay: .5});
@@ -677,10 +696,6 @@ function resultsScreen(inst) {
 				}));
 			}
 			i ++;
-		}
-		if (newHi) {
-			hiscore.alpha = 1;
-			FlxTween.tween(hiscore, {y: hiscore.y + 10}, 0.8, {ease: FlxEase.quartOut});
 		}
 	}));
 	subTimers.push(new FlxTimer().start(37 / 24, () -> { //bf appear, tally
@@ -756,7 +771,7 @@ function resultsClose(inst) {
 }
 function onDestroy() {
 	FlxTween.tween(Main.fpsVar, {alpha: 1}, .4, {ease: FlxEase.circInOut});
-	FlxG.sound.playMusic(Paths.music('freakyMenu'));
+	if (shownResults) FlxG.sound.playMusic(Paths.music('freakyMenu'));
 }
 function resultsUpdate(inst, e) {
 	if (!resultsActive) return;
@@ -793,6 +808,7 @@ function onUpdatePost(e) {
 }
 function createTally(inst, x, y, color, score) {
 	var grp = new FlxTypedSpriteGroup(x, y);
+	grp.camera = game.camHUD;
 	grp.scrollFactor.set();
 	grp.color = color;
 	inst.add(grp);
