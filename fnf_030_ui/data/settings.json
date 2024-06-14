@@ -17,7 +17,7 @@
 		"save": "combomilestone",
 		"name": "Combo Milestones",
 		"type": "bool",
-		"description": "<<< EXPERIMENTAL! >>>\nPorts unused code and art for combo milestones",
+		"description": "Ports unused code and art for combo milestones",
 		"value": false
 	},
 	{
@@ -54,5 +54,12 @@
 		"type": "bool",
 		"description": "Color notesplashes and pressed notes to be closer to their original (pre note RGB), more vibrant colors. Supports custom colors",
 		"value": true
+	},
+	{
+		"save": "worstsettinginthewholehistoryofpsych072+modding",
+		"name": "Sustain Flickering",
+		"type": "bool",
+		"description": "Flicker sustains for one frame when held (why?)",
+		"value": false
 	}
 ]

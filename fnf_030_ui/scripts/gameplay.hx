@@ -45,7 +45,7 @@ function onCreatePost() {
 	badBreaks = getSetting('badcombobreak', true);
 	ghost = ClientPrefs.data.ghostTapping;
 	ClientPrefs.data.ghostTapping = true;
-	return Function_Continue;
+	return;
 }
 function onDestroy() ClientPrefs.data.ghostTapping = ghost;
 function onKeyPress(k) {
@@ -62,7 +62,7 @@ function onKeyPress(k) {
 			game.songMisses ++;
 		}
 	}
-	return Function_Continue;
+	return;
 }
 function noteMiss(note) {
 	if (!note.hitCausesMiss || note.hitsound == 'hitsound') FlxG.sound.play(Paths.soundRandom('missnote', 1, 3), FlxG.random.float(0.5, 0.6));
@@ -71,9 +71,12 @@ function noteMiss(note) {
 		game.health += sub * game.healthLoss;
 		game.health -= c_MISS_PENALTY;
 	}
-	return Function_Continue;
+	return;
 }
-function goodNoteHitPre(note) if (!note.isSustainNote) inputs.push(note.noteData);
+function goodNoteHitPre(note) {
+	if (!note.isSustainNote) inputs.push(note.noteData);
+	return;
+}
 function goodNoteHit(note) {
 	if (newScore && !note.isSustainNote) { //PBOT1
 		var rating = snipeRating(note.rating);
@@ -88,13 +91,13 @@ function goodNoteHit(note) {
 		}
 		game.songScore += score;
 	}
-	if (!holdSystem) return Function_Continue;
+	if (!holdSystem) return;
 	if (!note.isSustainNote) {
 		if (badBreaks && (note.rating == 'bad' || note.rating == 'shit')) {
 			game.callOnHScript('makeGhostNote', [note]);
 			game.combo = 0;
 		}
-		if (!newScore) return Function_Continue;
+		if (!newScore) return;
 		if (!game.cpuControlled && note.sustainLength > 0) {
 			var info = {
 				data: note.noteData,
@@ -113,15 +116,23 @@ function goodNoteHit(note) {
 		game.health += health * game.healthGain;
 	}
 	game.updateScore();
-	return Function_Continue;
+	return;
 }
 function snipeRating(string) {
 	for (rating in game.ratingsData) if (rating.name == string) return rating;
 	return null;
 }
+function onPause() {
+	if (!game.cpuControlled) clearHoldData(-1);
+	return;
+}
 function onKeyRelease(k) {
+	clearHoldData(k);
+	return;
+}
+function clearHoldData(k) {
 	for (hold in holdInfo) {
-		if (hold.data != k) continue;
+		if (k >= 0 && hold.data != k) continue;
 		updateHoldData(hold, Conductor.songPosition, true);
 		var note = hold.note;
 		if (note != null) {
@@ -135,12 +146,11 @@ function onKeyRelease(k) {
 		hold.start = -1;
 		killInfo.push(hold);
 	}
-	return Function_Continue;
 }
 function onUpdatePost() {
 	for (kill in killInfo) holdInfo.remove(kill);
 	for (hold in holdInfo) updateHoldData(hold, Conductor.songPosition, false);
-	return Function_Continue;
+	return;
 }
 function updateHoldData(hold, time, apply) {
 	if (hold.start < 0) return;

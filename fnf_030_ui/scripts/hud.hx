@@ -15,7 +15,6 @@ var cameraBopMultiplier:Float = 1;
 var combo:Int = 0;
 var doMiss:Bool = false;
 var missRating:Bool = false;
-var noteEffects:Bool = false;
 var skipTween:Bool = false;
 var comboGroup:FlxTypedSpriteGroup<FlxSprite>;
 
@@ -43,7 +42,6 @@ function onCreate() {
 	
 	doMiss = getSetting('missbutlikeactually', false);
 	missRating = getSetting('miss', false);
-	noteEffects = getSetting('pixeleffects', true) || !PlayState.isPixelStage;
 	var showRam:Bool = getSetting('showram', false);
 	
 	for (snd in ['Volup', 'Voldown', 'VolMAX']) Paths.sound('soundtray/' + snd);
@@ -104,8 +102,6 @@ function onDestroy() {
 function onUpdateScore() game.scoreTxt.text = (game.cpuControlled ? 'Bot Play Enabled' : 'Score:' + game.songScore);
 
 function onCreatePost() {
-	for (note in game.unspawnNotes) if (!noteEffects) note.noteSplashData.disabled = true;
-	
 	comboGroup.cameras = [game.camHUD];
 	
 	game.healthBar.y = FlxG.height * (ClientPrefs.data.downScroll ? .1 : .9);
@@ -124,7 +120,7 @@ function onCreatePost() {
 	oldifyBar(game.healthBar);
 	game.healthBar.barOffset.set(4, 4);
 	
-	var relayer:Array = [game.iconP2, game.iconP1, game.scoreTxt];
+	var relayer:Array = [game.scoreTxt, game.iconP2, game.iconP1];
 	for (item in relayer) game.uiGroup.remove(item);
 	for (item in relayer) game.uiGroup.add(item); //:p
 	

@@ -564,7 +564,7 @@ function resultsScreen(inst) {
 	clearnumGrp.scrollFactor.set();
 	clearnumGrp.camera = game.camHUD;
 	
-	for (i in [resultsGf, resultsBf, grpInfoTexts, soundSystem, resultsBar, cats, score, hiscore, resultsTitle]) {
+	for (i in [resultsGf, resultsBf, heartsPerfect, grpInfoTexts, soundSystem, resultsBar, cats, score, hiscore, resultsTitle]) {
 		if (i == null) continue;
 		i.camera = game.camHUD;
 		i.scrollFactor.set();
