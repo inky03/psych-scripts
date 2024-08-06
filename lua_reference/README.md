@@ -1,9 +1,11 @@
 # "reference" module
 my shitty stupid useless experiment module, using metatables!!<br>
-this allows you to make "references" to objects, lua sprites and classes in game without having to type getProperty / setProperty on everything, allowing syntax to look almost similar to using source code / haxe!!<br>
-usage is explained below, example(a little outdated) provided in **reference_example.lua**
+this allows you to make "references" to objects, lua sprites and classes in game without having to type getProperty / setProperty on everything, allowing syntax to look almost similar to using source code / haxe!!
+
+usage is explained below, example(a little outdated) provided in **reference_example.lua**<br>
 
 ## todo
+feel free to pull request....the code sucks.....
 - [ ] FIX DESTROYINSTANCE FUNCTION (it actually kind of doesnt work too much rn... hehehe......im jumping off a cliff)
 - [ ] calling destroy() from a reference should also call reference.destroyInstance
 - [ ] fix access to typed groups (a hacky solution is being used right now for basic uses, but is not applicable for most cases)
@@ -103,7 +105,7 @@ if the object/field reference casted is from a class, a table of the form `{clas
 local boyfriend = reference 'boyfriend'
 debugPrint(boyfriend.healthColorArray) -- this will only return the reference to healthColorArray
 debugPrint(reference.cast(boyfriend.healthColorArray)) -- "cast" reference value, getting the intended array
-debugPrint(boyfriend.healthColorArray._value) -- _value calls cast too (and is easier to type...)
+debugPrint(boyfriend.healthColorArray._value) -- you can use _value instead of calling cast too (and is easier to type...)
 ```
 
 ### luaObjectExists("objectTag")
