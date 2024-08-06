@@ -24,11 +24,11 @@ all set! you can now for instance, get properties with `object.property`, set pr
 <br>some examples...
 ```lua
 function onCreatePost()
-	reference = require(runHaxeCode('return Paths.modFolders("scripts/reference.lua");'):gsub('.lua', ''))
+	reference = require(runHaxeCode('return Paths.modFolders("scripts/reference.lua");'):gsub('.lua', '')) -- import module
 	
 	FlxG = reference.ref('flixel.FlxG')
 	game = reference '' -- makes a REFERENCE to PlayState instance. syntactic sugar for ref
-	Paths = reference 'backend.Paths' -- also syntactic sugar
+	Paths = reference 'backend.Paths'
 	boyfriend = reference 'boyfriend'
 	
 	FlxG.mouse.visible = true
@@ -103,7 +103,7 @@ if the object/field reference casted is from a class, a table of the form `{clas
 local boyfriend = reference 'boyfriend'
 debugPrint(boyfriend.healthColorArray) -- this will only return the reference to healthColorArray
 debugPrint(reference.cast(boyfriend.healthColorArray)) -- "cast" reference value, getting the intended array
-debugPrint(boyfriend.healthColorArray._value) -- syntactic sugar for cast
+debugPrint(boyfriend.healthColorArray._value) -- _value calls cast too (and is easier to type...)
 ```
 
 ### luaObjectExists("objectTag")
