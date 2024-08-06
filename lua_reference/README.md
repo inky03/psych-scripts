@@ -101,14 +101,19 @@ if the object/field reference casted is from a class, a table of the form `{clas
 **EXAMPLE**<br>
 ```lua
 local boyfriend = reference 'boyfriend'
-debugPrint(boyfriend.healthColorArray) -- syntactic sugar; this will only return the reference to healthColorArray
-debugPrint(boyfriend.healthColorArray._value) -- casts the healthColorArray to a lua table array, getting the intended value...
-reference.cast(boyfriend.healthColorArray) -- ditto
+debugPrint(boyfriend.healthColorArray) -- this will only return the reference to healthColorArray
+debugPrint(reference.cast(boyfriend.healthColorArray)) -- "cast" reference value, getting the intended array
+debugPrint(boyfriend.healthColorArray._value) -- syntactic sugar for cast
 ```
 
 ### luaObjectExists("objectTag")
 checks if a lua object exists. returns a boolean (true if exists, false otherwise)<br>
 - `objectTag` is the tag of the lua object to check
+
+**EXAMPLE**<br>
+```lua
+reference.luaObjectExists('abcdef') -- checks if lua object 'abcdef' exists
+```
 
 ### objectExists("objectTag", "className")
 checks if an object exists. returns a boolean (true if exists, false otherwise)<br>
