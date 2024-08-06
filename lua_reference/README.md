@@ -15,7 +15,7 @@ usage is explained below, example(a little outdated) provided in **reference_exa
 ## usage
 + begin by importing the module with the following snippet:
   ```lua
-  reference = require(runHaxeCode('return Paths.modFolders("scripts/Reference.lua");'):gsub('.lua', ''))`
+  reference = require(runHaxeCode('return Paths.modFolders("scripts/reference.lua");'):gsub('.lua', ''))`
   ```
   this is relative to the folder your mod is in.<br>
   replace the modFolders path to the appropriate path to the module if necessary!
@@ -24,7 +24,7 @@ all set! you can now for instance, get properties with `object.property`, set pr
 <br>some examples...
 ```lua
 function onCreatePost()
-	reference = require(runHaxeCode('return Paths.modFolders("scripts/Reference.lua");'):gsub('.lua', ''))
+	reference = require(runHaxeCode('return Paths.modFolders("scripts/reference.lua");'):gsub('.lua', ''))
 	
 	FlxG = reference.ref('flixel.FlxG')
 	game = reference '' -- makes a REFERENCE to PlayState instance. syntactic sugar for ref

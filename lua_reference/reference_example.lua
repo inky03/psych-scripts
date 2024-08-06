@@ -15,7 +15,7 @@ local singDirs = {{-1, 0}, {0, 1}, {0, -1}, {1, 0}}
 
 function onCreatePost()
 	luaDebugMode = true
-	reference = require(runHaxeCode('return Paths.modFolders("scripts/Reference.lua");'):gsub('.lua', '')) -- IMPORTS THE MODULE
+	reference = require(runHaxeCode('return Paths.modFolders("scripts/reference.lua");'):gsub('.lua', '')) -- IMPORTS THE MODULE
 	reference.indexFromZero = true -- enabling this will make array access in references to start at [0] instead of [1] (as is usual in lua)
 	
 	mustHitSection = getPropertyFromClass('states.PlayState', 'SONG.notes[0].mustHitSection')
