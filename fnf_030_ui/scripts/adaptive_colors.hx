@@ -4,9 +4,9 @@ var adaptive:Bool = false;
 
 function getSetting(setting, def) {
 	var setting = game.callOnHScript('getScrSetting', [setting, def]);
-	if (!Std.isOfType(setting, Bool)) return def;
 	return setting;
 }
+function setStrumShade(strum) strumShades[strum.ID] = ['miss' => grayColors(int2rgb(strum.rgbShader.r)), 'hit' => {fill: strum.rgbShader.r, darkfill: strum.rgbShader.r, ring: strum.rgbShader.b}];
 function onCountdownStarted() {
 	adaptive = getSetting('adaptivecolors', true); //doesnt support pixel stages
 	if (!adaptive) return Function_Continue;
@@ -14,10 +14,8 @@ function onCountdownStarted() {
 	var tex = game.playerStrums.members[0].texture + '_n';
 	if (Paths.image(tex) != null && !PlayState.isPixelStage) { 
 		shadeNotes = true;
-		for (strum in game.playerStrums) {
-			if (!strum.useRGBShader) continue;
-			var colors = grayColors(int2rgb(strum.rgbShader.r));
-			strumShades[strum.noteData] = ['miss' => colors, 'hit' => {fill: strum.rgbShader.r, darkfill: strum.rgbShader.r, ring: strum.rgbShader.b}];
+		for (strum in game.strumLineNotes) {
+			setStrumShade(strum);
 			strum.texture = tex;
 		}
 	}
@@ -29,19 +27,18 @@ function onCountdownStarted() {
 			note.noteSplashData.b = colors.ring;
 		}
 	}
-	return Function_Continue;
 }
 
-function onUpdatePost() {
+function onUpdatePost(elapsed:Float) {
 	if (!adaptive || !shadeNotes) return Function_Continue;
-	for (strum in game.playerStrums) {
+	for (strum in game.strumLineNotes) {
 		var mod:String = (strum.animation.curAnim.name == 'pressed' ? 'miss' : 'hit');
-		if (strum.rgbShader.enabled) {
-			strum.rgbShader.r = (strum.animation.curAnim.curFrame < 2 ? strumShades[strum.noteData][mod].darkfill : strumShades[strum.noteData][mod].fill);
-			strum.rgbShader.b = strumShades[strum.noteData][mod].ring;
+		if (strum.useRGBShader && strum.rgbShader.enabled) {
+			if (strumShades[strum.ID] == null) setStrumShade(strum);
+			strum.rgbShader.r = (strum.animation.curAnim.curFrame < 2 ? strumShades[strum.ID][mod].darkfill : strumShades[strum.ID][mod].fill);
+			strum.rgbShader.b = strumShades[strum.ID][mod].ring;
 		}
 	}
-	return Function_Continue;
 }
 
 function clamp(n, min, max) return Math.min(Math.max(n, min), max);
@@ -116,12 +113,13 @@ function hsv2rgb(col) {
 	mid /= 255;
 	match /= 255;
 
-	switch (Std.int(hueD)) {
+	switch (Math.floor(hueD)) {
 		case 0: return {red: chroma, green: mid, blue: match};
 		case 1: return {red: mid, green: chroma, blue: match};
 		case 2: return {red: match, green: chroma, blue: mid};
 		case 3: return {red: match, green: mid, blue: chroma};
 		case 4: return {red: mid, green: match, blue: chroma};
 		case 5: return {red: chroma, green: match, blue: mid};
+		default: return null;
 	}
 }

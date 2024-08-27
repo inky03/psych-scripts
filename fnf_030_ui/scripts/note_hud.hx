@@ -1,7 +1,6 @@
-import flixel.util.FlxColor;
 import objects.PixelSplashShader;
 import flixel.group.FlxTypedSpriteGroup;
-using StringTools;
+//using StringTools;
 
 var skinSettings:Map = [ //if you need to modify the scale for other skins add it here
 	'NOTE_assets-future' => { //you may do this by noteskin asset name
@@ -18,13 +17,13 @@ var skinSettings:Map = [ //if you need to modify the scale for other skins add i
 TODO
 - improve code
 */
+var noteSparks:Bool = true;
 var coverGroup:FlxTypedSpriteGroup<FlxSprite>;
 var coverSplashGroup:FlxTypedSpriteGroup<FlxSprite>;
 var prevFrame:Int = 0;
 var rgbs:Array = []; //rgb shader references for hold covers
 var holdCovers:Array = [];
 var playHits:Array = [];
-var playPresses:Array = [];
 var flicker:Array = [];
 var flickered:Bool = false;
 var flickers:Bool = false;
@@ -32,9 +31,14 @@ var noteEffects:Bool = false;
 
 function getSetting(setting, def) {
 	var setting = game.callOnHScript('getScrSetting', [setting, def]);
-	if (!Std.isOfType(setting, Bool)) return def;
 	return setting;
 }
+
+function onCreate() {
+	noteSparks = getSetting('holdscoring', true);
+	Paths.getSparrowAtlas('holdCoverShader');
+}
+
 function onCreatePost() {
 	coverGroup = new FlxTypedSpriteGroup();
 	coverGroup.cameras = [game.camHUD];
@@ -76,13 +80,13 @@ function onCreatePost() {
 				cover.offset.x -= config.offset.x;
 				cover.offset.y -= config.offset.y;
 			}
-		} else { //attempts to scale hold cover automatically
+		} else { //attempt to scale hold cover automatically
 			var path:String = 'noteSkins/' + getFilename(strum.graphic.key);
 			if (path != 'noteSkins/NOTE_assets') {
 				var ref = new FlxSprite(300, 300);
 				Paths.image(path);
 				ref.frames = Paths.getSparrowAtlas(path);
-				ref.animation.addByPrefix('hold', inArray(Note.colArray, strum.noteData) + ' hold piece');
+				ref.animation.addByPrefix('hold', Note.colArray[strum.noteData] + ' hold piece');
 				ref.animation.play('hold');
 				if (PlayState.isPixelStage) ref.scale.x *= .7;
 				ref.updateHitbox();
@@ -103,32 +107,21 @@ function onCreatePost() {
 		
 		i ++;
 	}
-	return;
 }
 
 function getFilename(key) {
-	var s = key.replace('\\', '/');
+	var s = StringTools.replace(key, '\\', '/');
 	var pos:Int = s.lastIndexOf('/');
 	var dot:Int = s.lastIndexOf('.');
 	if (s.lastIndexOf('/') >= 0) return s.substring(pos + 1, (dot < 0 ? s.length : dot));
 	else return '';
 }
 function getSkinPostfix(key) {
-	var s = key.replace('\\', '/');
+	var s = StringTools.replace(key, '\\', '/');
 	var pos:Int = s.lastIndexOf('-');
 	var dot:Int = s.lastIndexOf('.');
 	if (pos > s.lastIndexOf('/')) return s.substring(pos + 1, (dot < 0 ? s.length : dot)).toLowerCase();
 	else return '';
-}
-
-function inArray(array, pos) { //array access lags workaround???
-    var i = 0;
-	if (pos >= array.length) return null;
-    for (item in array) {
-        if (i == pos) { return item; }
-        i ++;
-    }
-    return null;
 }
 
 function onSpawnNote(note) {
@@ -136,13 +129,14 @@ function onSpawnNote(note) {
 		var strum = getStrum(note.mustPress, note.noteData);
 		note.multAlpha = 1;
 		if (PlayState.isPixelStage) note.scale.x = 6 * .7;
-		if (note.animation.name.endsWith('end')) note.scale.y = note.scale.x;
+		if (StringTools.endsWith(note.animation.name, 'end')) note.scale.y = note.scale.x;
 		note.updateHitbox();
 		note.offsetX = (strum.width - note.width) * .5;
 	}
+	return;
 }
 function onKeyRelease(k) {
-	var data = inArray(holdCovers, k + game.opponentStrums.length);
+	var data = holdCovers[k + game.opponentStrums.length];
 	if (data == null) return;
 	var cover = data.cover;
 	if (cover != null && cover.animation.name != 'end') cover.visible = false;
@@ -164,6 +158,7 @@ function popCover(note, strum, cover, rgb) {
 	}
 }
 function spawnCoverSparks(cover) {
+	if (!noteSparks) return;
 	var coverSplash:FlxSprite = new FlxSprite(); //coverSplashGroup.recycle(FlxSprite); figure out why this doesnt work correctly later
 	coverSplash.frames = Paths.getSparrowAtlas('holdCoverShader');
 	coverSplash.setPosition(cover.x, cover.y);
@@ -180,8 +175,8 @@ function coverLogic(note, end) {
 	var data = note.noteData;
 	if (note.mustPress) data += game.opponentStrums.length;
 	
-	var coverData = inArray(holdCovers, data);
-	var rgb = inArray(rgbs, data);
+	var coverData = holdCovers[data];
+	var rgb = rgbs[data];
 	
 	if (coverData == null) return;
 	var cover = coverData.cover;
@@ -199,7 +194,7 @@ function coverLogic(note, end) {
 				if (note.mustPress && !note.noteSplashData.disabled) spawnCoverSparks(cover);
 			} else {
 				var hitTime:Float = note.strumTime;
-				var delay:Float = (note.height / .45 / game.songSpeed / note.multSpeed); //pixels > ms
+				var delay:Float = (note.height / .45 / game.songSpeed / note.multSpeed / game.playbackRate); //pixels > ms
 				new FlxTimer().start(delay * .001, () -> {
 					if (strum != null && coverData.hitTime == hitTime && strum.animation.name == 'hit') {
 						if (note != null && !note.noteSplashData.disabled) spawnCoverSparks(cover);
@@ -228,13 +223,13 @@ function coverLogic(note, end) {
 		}
 	}
 }
-function getStrum(hit, data) return inArray((hit ? game.playerStrums : game.opponentStrums).members, data);
+function getStrum(hit, data) return (hit ? game.playerStrums : game.opponentStrums).members[data];
 function opponentNoteHitPre(note) {
-	coverLogic(note, note.animation.name.endsWith('end'));
+	coverLogic(note, StringTools.endsWith(note.animation.name, 'end'));
 	if (note.isSustainNote) {
 		if (!note.noAnimation) {
 			note.noAnimation = true;
-			game.dad.holdTimer = 0;
+			getCharacter(note).holdTimer = 0;
 		}
 	} else {
 		var strum = getStrum(false, note.noteData);
@@ -248,10 +243,12 @@ function opponentNoteHitPre(note) {
 			}
 		}
 	}
+	return;
 }
 function opponentNoteHit(note) {
 	var strum = getStrum(false, note.noteData);
 	strum.resetAnim = (note.isSustainNote ? 0 : Conductor.crochet * .001);
+	return;
 }
 function makeGhostNote(note) {
 	var ghost = new Note(note.strumTime, note.noteData, null, note.isSustainNote);
@@ -265,12 +262,14 @@ function makeGhostNote(note) {
 	ghost.rgbShader.g = int_desat(ghost.rgbShader.g, 0.5);
 	ghost.rgbShader.b = int_desat(ghost.rgbShader.b, 0.5);
 }
+function getCharacter(note)
+	return (note.gfNote ? game.gf : (note.mustPress ? game.boyfriend : game.dad));
 function goodNoteHitPre(note) {
 	var strum = getStrum(true, note.noteData);
 	if (note.isSustainNote) {
 		if (!note.noAnimation) {
 			note.noAnimation = true;
-			game.dad.holdTimer = 0;
+			getCharacter(note).holdTimer = 0;
 		}
 	}
 	return;
@@ -279,23 +278,18 @@ function goodNoteHit(note) {
 	var strum = getStrum(true, note.noteData);
 	if (!note.isSustainNote && strum != null) {
 		playHits.push({strum: strum, hold: note.sustainLength > 0});
-		for (press in playPresses) if (press.strum == strum) playPresses.remove(press);
-		if (note.tail.length == 0 && !game.cpuControlled) playPresses.push({strum: strum, time: note.strumTime + Conductor.crochet});
+		if (note.tail.length == 0 && !game.cpuControlled) {
+			new FlxTimer().start(Conductor.crochet * .001, () -> {
+				if (strum.animation.name == 'hit')
+					strum.playAnim('pressed', true);
+			});
+		}
 		strum.resetAnim = (note.tail.length > 0 || (game.cpuControlled && note.tail.length == 0) ? (Conductor.crochet * .001) : 0);
 	}
-	coverLogic(note, note.animation.name.endsWith('end'));
+	coverLogic(note, StringTools.endsWith(note.animation.name, 'end'));
 	return;
 }
-function onUpdate() {
-	if (!flickered) {
-		while (flicker.length > 0) {
-			var sus = flicker.shift();
-			sus.visible = true;
-		}
-	}
-	flickered = false;
-}
-function onUpdatePost(e) {
+function onUpdatePost(elapsed:Float) {
 	while (playHits.length > 0) { //psych engine is a meanie
 		var i = playHits.shift();
 		var strum = i.strum;
@@ -308,27 +302,22 @@ function onUpdatePost(e) {
 			}
 		}
 	}
-	for (press in playPresses) {
-		if (Conductor.songPosition >= press.time) {
-			var strum = press.strum;
-			if (strum != null && strum.animation.name == 'hit' && strum.resetAnim <= 0) {
-				strum.animation.finishCallback = null;
-				strum.playAnim('pressed');
-				strum.resetAnim = 0;
-			}
-			playPresses.remove(press);
-		}
-	}
 	for (cover in holdCovers) {
 		var instance = cover.cover;
 		var strum = cover.strum;
 		if (strum != null) {
 			instance.setPosition(strum.x, strum.y);
-			instance.alpha = (strum.alpha > 0 ? 1 : 0);
+			instance.alpha = (strum.alpha > 0 && strum.visible ? 1 : 0);
 			if (strum.animation.name != 'hit') instance.visible = false;
 		}
 	}
-	return;
+	if (!flickered) {
+		while (flicker.length > 0) {
+			var sus = flicker.shift();
+			sus.visible = true;
+		}
+	} else
+		flickered = false;
 }
 
 //RGB FUNCTIONS CAUSE CUSTOMFLXCOLOR IS ASS
@@ -362,7 +351,7 @@ function hsv2rgb(col) {
 	mid /= 255;
 	match /= 255;
 
-	switch (Std.int(hueD)) {
+	switch (Math.floor(hueD)) {
 		case 0: return {red: chroma, green: mid, blue: match};
 		case 1: return {red: mid, green: chroma, blue: match};
 		case 2: return {red: match, green: chroma, blue: mid};

@@ -29,5 +29,5 @@ var artist_fallback:Map = [
 
 function onCreate() {
 	if (PlayState.SONG.artist == null) PlayState.SONG.artist = artist_fallback.get(PlayState.SONG.song.toLowerCase()); //if this is also null nothing changes :P
-	return Function_Continue;
+	return;
 }

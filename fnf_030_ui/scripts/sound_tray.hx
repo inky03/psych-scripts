@@ -29,7 +29,7 @@ function onCreate() {
 		bar.scaleX = graphicScale;
 		bar.scaleY = graphicScale;
 		bar.smoothing = true;
-		i ++;
+		i += 1;
 	}
 	var bg = soundTray.getChildAt(0);
 	var graphic = Paths.image('soundtray/volumebox');
@@ -38,8 +38,6 @@ function onCreate() {
 	bg.scaleY = graphicScale;
 	bg.smoothing = true;
 	soundTray.screenCenter();
-	var test = soundTray.getChildAt(1); //remove backing bar if hadnt been removed for any reason??
-	if (Std.isOfType(test, Bitmap)) soundTray.removeChildAt(1);
 	var text = soundTray.getChildAt(1);
 	text.visible = false;
 	
@@ -52,7 +50,8 @@ function onCreate() {
 	backingBar.y = 5;
 	backingBar.alpha = .4;
 	soundTray.addChildAt(backingBar, 1);
-	soundTray.silent = true;	
+	soundTray.silent = true;
+	return;	
 }
 
 function onDestroy() {
@@ -77,8 +76,9 @@ function onDestroy() {
 		bar.scaleY = 1;
 		bar.smoothing = false;
 		bar.visible = true;
-		i ++;
+		i += 1;
 	}
 	soundTray.screenCenter();
 	soundTray.alpha = 1;
+	return;
 }

@@ -1,16 +1,13 @@
 import Main;
-import lime.app.Application;
 import openfl.text.TextFormat;
 import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
 import flixel.addons.transition.FlxTransitionableState;
 import flixel.util.FlxStringUtil;
 import flixel.group.FlxTypedSpriteGroup;
-using StringTools;
 
 var forceHBColors:Bool = false;
 var lerpHealth:Float = 1;
-var iconScale:Float = 150;
 var cameraBopMultiplier:Float = 1;
 var combo:Int = 0;
 var doMiss:Bool = false;
@@ -33,7 +30,6 @@ var c_PIXELARTSCALE:Float = 6;
 
 function getSetting(setting, def) {
 	var setting = game.callOnHScript('getScrSetting', [setting, def]);
-	if (!Std.isOfType(setting, Bool)) return def;
 	return setting;
 }
 function onCreate() {
@@ -52,12 +48,12 @@ function onCreate() {
 	}
 	oldVolume = FlxG.sound.volume;
 	
-	var appTitle:String = Application.current.window.title;
-	if (appTitle.trim() != '' && appTitle != 'Friday Night Funkin\'') oldTitle = appTitle;
-	Application.current.window.title = 'Friday Night Funkin\'';
+	var appTitle:String = FlxG.stage.window.title;
+	if (StringTools.trim(appTitle) != '' && appTitle != 'Friday Night Funkin\'') oldTitle = appTitle;
+	FlxG.stage.window.title = 'Friday Night Funkin\'';
 	
-	FlxTransitionableState.skipNextTransOut = true; //custom fps display
-	psychFps = Main.fpsVar.updateText;
+	FlxTransitionableState.skipNextTransOut = true;
+	psychFps = Main.fpsVar.updateText; //custom fps display
 	Main.fpsVar.defaultTextFormat = new TextFormat('_sans', 12, 0xffffff, false, false, false, '', '', 'left', 0, 0, 0, -4); //lol!
 	Main.fpsVar.updateText = () -> {
         memPeak = Math.max(memPeak, Main.fpsVar.memoryMegas);
@@ -80,7 +76,7 @@ function onCreate() {
 			var i = 1;
 			for (bar in soundTray._bars) {
 				bar.visible = (i == globalVolume); //so the bars dont stack up lmao!
-				i ++;
+				i += 1;
 			}
 			//check volume change
 			if (FlxG.sound.volume != oldVolume || (FlxG.keys.anyJustPressed(FlxG.sound.volumeUpKeys) && FlxG.sound.volume >= 1)) {
@@ -90,13 +86,14 @@ function onCreate() {
 			}
 		}
     }
-	return Function_Continue;
+	game.updateIconsScale = () -> {};
 }
 
 function onDestroy() {
-	Application.current.window.title = oldTitle;
+	FlxG.stage.window.title = oldTitle;
 	Main.fpsVar.defaultTextFormat = new TextFormat('_sans', 14, 0xffffff, false, false, false, '', '', 'left', 0, 0, 0, 0);
 	Main.fpsVar.updateText = psychFps;
+	return Function_Continue;
 }
 
 function onUpdateScore() game.scoreTxt.text = (game.cpuControlled ? 'Bot Play Enabled' : 'Score:' + game.songScore);
@@ -106,8 +103,8 @@ function onCreatePost() {
 	
 	game.healthBar.y = FlxG.height * (ClientPrefs.data.downScroll ? .1 : .9);
 	game.healthBar.setColors(0xff0000, 0x66ff33);
-	game.iconP1.y = healthBar.y - (game.iconP1.height / 2);
-	game.iconP2.y = healthBar.y - (game.iconP2.height / 2);
+	game.iconP1.y = game.healthBar.y - (game.iconP1.height / 2);
+	game.iconP2.y = game.healthBar.y - (game.iconP2.height / 2);
 	
 	game.scoreTxt.fieldWidth = 0;
 	game.scoreTxt.setPosition(game.healthBar.x + game.healthBar.width - 190, game.healthBar.y + 30);
@@ -118,9 +115,15 @@ function onCreatePost() {
 	game.healthBar.leftBar.color = 0xff0000;
 	game.healthBar.rightBar.color = 0x66ff33;
 	oldifyBar(game.healthBar);
+	oldifyBar(game.timeBar);
+	game.timeBar.rightBar.color = 0x000080;
+	//game.timeBar.leftBar.color = 0x66ffff;
+	game.timeBar.bg.loadGraphic(Paths.image('timeBar'));
+	game.timeTxt.size = game.scoreTxt.size + 6;
+	game.timeTxt.y = game.timeBar.y + (game.timeBar.height - game.timeTxt.height) * .5;
 	game.healthBar.barOffset.set(4, 4);
 	
-	var relayer:Array = [game.scoreTxt, game.iconP2, game.iconP1];
+	var relayer:Array = [game.scoreTxt, game.healthBar, game.iconP2, game.iconP1];
 	for (item in relayer) game.uiGroup.remove(item);
 	for (item in relayer) game.uiGroup.add(item); //:p
 	
@@ -135,6 +138,7 @@ function oldifyBar(bar) {
 	bar.insert(what, bar.rightBar);
 	bar.barWidth = bar.bg.width - 8;
 	bar.barHeight = bar.bg.height - 8;
+	bar.barOffset.set(4, 4);
 	bar.updateBar();
 }
 
@@ -160,40 +164,44 @@ function onCountdownStarted() {
 			FlxTween.tween(strum, {y: strum.y + m * 10, alpha: ((ClientPrefs.data.middleScroll && i < game.opponentStrums.length) ? 0.35 : 1)}, 1, {ease: FlxEase.circOut, startDelay: 0.5 + (0.2 * (i % game.opponentStrums.length))});
 		}
 		
-		i ++;
+		i += 1; //++ isnt implemented sobbing rn
 	}
 	return Function_Continue;
 }
 
 function boom() {
 	if (game.camZoomingDecay > 0 && FlxG.camera.zoom < 1.35 * FlxCamera.defaultZoom && ClientPrefs.data.camZooms) {
-		cameraBopMultiplier = 1 + .015 * game.camZoomingMult;
-		FlxG.camera.zoom = game.defaultCamZoom * cameraBopMultiplier;
+		FlxG.camera.zoom = game.defaultCamZoom * (1 + .015 * game.camZoomingMult);
 		game.camHUD.zoom = .03 + 1;
 	}
 }
 function onCountdownTick(_, t) {
 	if (t % 4 == 0) boom();
-	iconScale += 30;
-	return Function_Continue;
+	game.iconP1.setGraphicSize(game.iconP1.width * 1.2);
+	game.iconP2.setGraphicSize(game.iconP2.width * 1.2);
+	game.iconP1.updateHitbox();
+	game.iconP2.updateHitbox();
 }
-function onBeatHit() {
-	iconScale += 30;
-	return Function_Continue;
-}
-function onSectionHit() {
-	boom();
-	return Function_Continue;
-}
+function onSectionHit() boom();
 function onUpdate(e) {
-	if (game.camZoomingDecay > 0) {
-		cameraBopMultiplier = 1 + 0.95 * (cameraBopMultiplier - 1.0);
-		var zoomPlusBop:Float = game.defaultCamZoom * cameraBopMultiplier;
-		var hudZoomingMult:Float = (Std.isOfType(getVar('hudZoomingMult'), Float) ? getVar('hudZoomingMult') : 1);
-		FlxG.camera.zoom = game.defaultCamZoom * cameraBopMultiplier * game.camZoomingMult;
-		game.camHUD.zoom = FlxMath.lerp(1, camHUD.zoom, 0.95) * hudZoomingMult;
+	if (FlxG.keys.justPressed.NINE) {
+		if (game.iconP1.char == 'bf-old') {
+			game.iconP1.changeIcon(game.boyfriend.healthIcon);
+			game.iconP1.scale.set(1, 1);
+			game.iconP1.updateHitbox();
+		} else {
+			game.iconP1.changeIcon('bf-old');
+		}
 	}
-	return Function_Continue;
+	if (game.camZoomingDecay > 0) {
+		var hudZoomingMult:Float = (getVar('hudZoomingMult') != null ? getVar('hudZoomingMult') : 1);
+		FlxG.camera.zoom = FlxMath.lerp(game.defaultCamZoom, FlxG.camera.zoom, 0.95);
+		game.camHUD.zoom = FlxMath.lerp(1, game.camHUD.zoom, 0.95) * hudZoomingMult;
+	}
+	return;
+}
+function coolLerp(base, target, ratio) { //funkin mathutil
+	return base + (ratio * FlxG.elapsed / (1 / 60)) * (target - base);
 }
 function onUpdatePost(e) {
 	game.camZooming = false;
@@ -201,18 +209,19 @@ function onUpdatePost(e) {
 	lerpHealth = FlxMath.lerp(lerpHealth, game.health, .15); //WHY IS EVERYTHING TIED TO FPS
 	game.healthBar.percent = lerpHealth * 50;
 	
-	game.iconP1.setGraphicSize(iconScale);
-	game.iconP2.setGraphicSize(iconScale);
+	game.iconP1.setGraphicSize(coolLerp(game.iconP1.width, 150, .15));
+	game.iconP2.setGraphicSize(coolLerp(game.iconP2.width, 150, .15));
+	game.iconP1.updateHitbox();
+	game.iconP2.updateHitbox();
 	game.updateIconsPosition();
-	iconScale = FlxMath.lerp(iconScale, 150, .15);
 	
 	if (forceHBColors && (game.healthBar.leftBar.color != 0xff0000 || game.healthBar.rightBar.color != 0x66ff33)) game.healthBar.setColors(0xff0000, 0x66ff33);
 	//uhh!
-	return Function_Continue;
+	return;
 }
-function onEvent() {
+function onEvent(event, v1, v2) {
 	game.healthBar.setColors(0xff0000, 0x66ff33);
-	return Function_Continue;
+	return;
 }
 
 //ratings stuff
@@ -222,7 +231,7 @@ function goodNoteHit(note) {
 		combo = game.combo;
 		popUpScore(note.rating);
 	}
-	return Function_Continue;
+	return;
 }
 function noteMissPress(d) {
 	if (!doMiss) return Function_Continue;
@@ -231,7 +240,7 @@ function noteMissPress(d) {
 	if (combo >= 10) displayCombo(0);
 	if (wipe && !ClientPrefs.data.comboStacking) wipeRatings();
 	combo = 0;
-	return Function_Continue;
+	return;
 }
 function noteMiss(note) {
 	var wipe:Bool = false;
@@ -239,7 +248,7 @@ function noteMiss(note) {
 	if (combo >= 10) displayCombo(0);
 	if (wipe && !ClientPrefs.data.comboStacking) wipeRatings();
 	combo = 0;
-	return Function_Continue;
+	return;
 }
 function popUpScore(rating) {
 	if (ClientPrefs.data.hideHud) return;
@@ -323,7 +332,7 @@ function displayCombo(combo) {
 			numScore.destroy();
 		}, startDelay: Conductor.crochet * .002});
 		comboGroup.add(numScore);
-		daLoop ++;
+		daLoop += 1;
 	}
 	return combo;
 }

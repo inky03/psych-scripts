@@ -16,7 +16,6 @@ var previousSection:Int = 0;
 
 function getSetting(setting, def) {
 	var setting = game.callOnHScript('getScrSetting', [setting, def]);
-	if (!Std.isOfType(setting, Bool)) return def;
 	return setting;
 }
 function onCreate() {
@@ -30,39 +29,29 @@ function onCreate() {
 	Paths.sound('comboSound');
 	Paths.getSparrowAtlas('comboMilestone');
 	Paths.getSparrowAtlas('comboMilestoneNumbers');
-	return Function_Continue;
+	return;
 }
 
 function onSongStart() {
-	if (!enabled) return Function_Continue;
+	if (!enabled) return;
 	
 	currentSection = game.curSection;
 	section = getSection(currentSection);
 	nextSection = getSection(currentSection + 1);
-	return Function_Continue;
+	return;
 }
 
-function inArray(array, pos) { //array access lags workaround???
-    var i = 0;
-    for (item in array) {
-        if (i == pos) { return item; }
-        i ++;
-    }
-    return null;
-}
-
-function getSection(section) return inArray(PlayState.SONG.notes, section);
 function onBeatHit() {
 	if (!enabled) return Function_Continue;
 	
 	currentSection = game.curSection; //stupid psych calls beat hit before updating the section
 	if (currentSection > previousSection) {
-		section = getSection(currentSection);
-		nextSection = getSection(currentSection + 1);
+		section = PlayState.SONG.notes[currentSection];
+		nextSection = PlayState.SONG.notes[currentSection + 1];
 	}
 	
-	var shouldShowComboText = (game.curBeat % 8 == 7 && (section != null && section.mustHitSection) && game.combo >= 5);
-	var isEndOfSong = (game.songLength / Conductor.crochet /* fix later lol! */) < Std.int(Conductor.curBeat / 16);
+	var shouldShowComboText:Bool = (game.curBeat % 8 == 7 && (section != null && section.mustHitSection) && game.combo >= 5);
+	var isEndOfSong:Bool = (game.songLength / Conductor.crochet /* fix later lol! */) < Math.floor(Conductor.curBeat / 16);
 	shouldShowComboText = shouldShowComboText && (isEndOfSong || (nextSection != null && !nextSection.mustHitSection));
 	if (shouldShowComboText) {
 		var milestone = Milestone(-100, 300, game.combo);
@@ -71,7 +60,7 @@ function onBeatHit() {
 		milestoneTimer = new FlxTimer().start(Conductor.crochet / 1000 * 1.25 - frameShit, forceFinish);
 	}
 	previousSection = currentSection;
-	return Function_Continue;
+	return;
 }
 
 function onUpdate(e) {
@@ -84,7 +73,7 @@ function onUpdate(e) {
 	if (frame == 18) for (n in milestoneNumbers) n.animation.reset();
 	if (frame >= 20) destroyNums();
 	
-	return Function_Continue;
+	return;
 }
 
 function destroyNums() {
@@ -123,7 +112,7 @@ function setupCombo(x, y, combo) {
 	milestoneComboSetup = true;
 	var i = 0;
 	while (milestoneCombo > 0) {
-		var num = Std.string(milestoneCombo % 10);
+		var num = milestoneCombo % 10;
 		var combo = new FlxSprite(450 - (100 * i) + x - 20, 20 + 14 * i + y);
 		combo.frames = Paths.getSparrowAtlas('comboMilestoneNumbers');
 		combo.cameras = [game.camHUD];
@@ -135,23 +124,10 @@ function setupCombo(x, y, combo) {
 		combo.setGraphicSize(combo.width * 0.7);
 		
 		milestoneCombo = Math.floor(milestoneCombo / 10);
-		i ++;
+		i += 1;
 	}
 }
 function forceFinish() {
 	if (milestoneScreentime < .9) new FlxTimer().start(Conductor.crochet / 1000 * .25, forceFinish);
 	else effectStuff.animation.play('main', true, false, 18);
 }
-/*function updateSection() {
-	var beats:Int = 0;
-	var i:Int = 0;
-	for (section in PlayState.SONG.notes) {
-		var sectionBeats:Int = section.sectionBeats;
-		if (sectionBeats == null) sectionBeats = 4;
-		beats += sectionBeats;
-		
-		if (game.curBeat < beats) return i;
-		i ++;
-	}
-	return null;
-}*/

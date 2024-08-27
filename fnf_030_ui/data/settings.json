@@ -7,59 +7,67 @@
 		"value": false
 	},
 	{
-		"save": "newscoring",
-		"name": "New Scoring System",
+		"save": "scoring",
+		"name": "Scoring System",
+		"type": "string",
+		"options": ["Psych Engine", "Funkin [PBOT1]", "Funkin [WEEK 7]", "Funkin [LEGACY]"],
+		"description": "Scoring system to use in-game.                               \n+ Psych Engine: The default scoring system                  \n+ Funkin [PBOT1]: New default scoring system in Funkin'     \n+ WEEK 7: Scoring system in Funkin' (0.2.8 / Week 7)       \n+ LEGACY: Scoring system in Funkin' (pre-0.2.8 / Week 7)   ",
+		"value": "Funkin [PBOT1]"
+	},
+	{
+		"save": "holdscoring",
+		"name": "Hold Scoring",
 		"type": "bool",
-		"description": "<<< EXPERIMENTAL! >>>\nAdd the new scoring system in gameplay",
+		"description": "Notes will gradually increase health and score while held.\nDisabling this will also disable hold sparks.",
 		"value": true
 	},
 	{
 		"save": "combomilestone",
 		"name": "Combo Milestones",
 		"type": "bool",
-		"description": "Ports unused code and art for combo milestones",
+		"description": "Ports unused code and art for Combo Milestones",
 		"value": false
 	},
 	{
 		"save": "miss",
 		"name": "Miss Judgement",
 		"type": "bool",
-		"description": "Show miss judgements on combo break (upcoming feature?)",
+		"description": "Adds \"Miss\" judgements when missing notes",
 		"value": false
 	},
 	{
 		"save": "pixeleffects",
 		"name": "Note Effects in Pixel UI",
 		"type": "bool",
-		"description": "Show the notesplashes and hold cover effects in pixel UI (hidden since FNF 0.3.0)",
+		"description": "Show the notesplashes and hold cover effects in pixel UI\n(hidden since FNF 0.3.0)",
 		"value": false
 	},
 	{
 		"save": "missbutlikeactually",
 		"name": "Miss on Ghost Tap",
 		"type": "bool",
-		"description": "Break combo and cause a miss on ghost tap (disabled since FNF 0.3.0)",
+		"description": "Break combo and cause a miss when ghost tapping\n(disabled since FNF 0.3.0)",
 		"value": false
 	},
 	{
 		"save": "badcombobreak",
-		"name": "Combo Break on Bad/Shit Hits",
+		"name": "Combo Break on Bad Hits",
 		"type": "bool",
-		"description": "Break combo when hitting a Bad or a Shit\n(enabled since FNF 0.3.0)",
+		"description": "Break combo on Bad or Shit judgements (since FNF 0.3.0)\nDisabling this will also disable ghost notes.",
 		"value": true
 	},
 	{
 		"save": "adaptivecolors",
 		"name": "Accurate Note Colors",
 		"type": "bool",
-		"description": "Color notesplashes and pressed notes to be closer to their original (pre note RGB), more vibrant colors. Supports custom colors",
+		"description": "Color notesplashes and pressed notes to be closer to their original (pre-note RGB), more vibrant colors (supports custom note colors).",
 		"value": true
 	},
 	{
 		"save": "worstsettinginthewholehistoryofpsych072+modding",
-		"name": "Sustain Flickering",
+		"name": "Hold Flickering",
 		"type": "bool",
-		"description": "Flicker sustains for one frame when held (why?)",
+		"description": "Flicker note holds for one frame when held (pre-0.4.0)",
 		"value": false
 	}
 ]

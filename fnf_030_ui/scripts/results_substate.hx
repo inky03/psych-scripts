@@ -8,7 +8,11 @@ TODO
 - do it already stupid girl
 - fix other stuff
 */
+import Std;
 import Main;
+import Reflect;
+import sys.io.File;
+import sys.FileSystem;
 import flixel.effects.FlxFlicker;
 import flixel.sound.FlxSound;
 import flixel.util.FlxGradient;
@@ -19,9 +23,11 @@ import flixel.util.FlxSave;
 import backend.CoolUtil;
 import backend.MusicBeatState;
 import flixel.addons.transition.FlxTransitionableState;
+import backend.Language;
 import backend.WeekData;
 import backend.Highscore;
 import backend.Difficulty;
+import states.MainMenuState;
 import states.FreeplayState;
 import states.StoryMenuState;
 import flixel.math.FlxBasePoint;
@@ -45,6 +51,7 @@ var inResults:Bool = false;
 var resultsActive:Bool = false;
 var resultsMusic = null;
 var introSound = null;
+var cam;
 var rankDelay:Map = [
 	'PERFECT' => {music: 95 / 24, flash: 129 / 24, bf: 95 / 24, hi: 140 / 24},
 	'EXCELLENT' => {music: 0, flash: 122 / 24, bf: 95 / 24, hi: 140 / 24}, //its 97/24 but it wouldnt sync ;(
@@ -53,6 +60,7 @@ var rankDelay:Map = [
 	'SHIT' => {music: 2 / 24, flash: 186 / 24, bf: 95 / 24, hi: 207 / 24},
 ];
 
+var stickerCam:FlxCamera;
 var stickerImages:Array = [];
 var stickerSounds:Array = [];
 
@@ -102,7 +110,6 @@ function precacheStickers() {
 			}
 		}
 	}
-	var funny:FlxSprite = new FlxSprite(100, 100).loadGraphic(Paths.image('icons/icon-dad'));
 	var soundsPath:String = Paths.modFolders('sounds/stickersounds/');
 	if (FileSystem.exists(soundsPath)) {
 		for (sub in FileSystem.readDirectory(soundsPath)) {
@@ -119,7 +126,7 @@ function precacheStickers() {
 	}
 }
 function goodNoteHit(note) {
-	if (!note.hitCausesMiss && !note.isSustainNote) totalHits ++;
+	if (!note.hitCausesMiss && !note.isSustainNote) totalHits += 1;
 	maxCombo = Math.max(maxCombo, game.combo);
 	return;
 }
@@ -172,17 +179,21 @@ function onEndSong() {
 	FlxTween.tween(game.camHUD, {alpha: 0}, 1);
 	new FlxTimer().start(1.5, () -> {
 		game.remove(fade);
-		resultsScreen(game);
-		game.paused = true;
-		//CustomSubstate.openCustomSubstate('results');
+		//resultsScreen(game);
+		//game.paused = true;
+		CustomSubstate.openCustomSubstate('results');
 	});
 	return Function_Stop;
 }
 
 function stickers(inst) {
+	stickerCam = new FlxCamera(); //this game sucks
+	stickerCam.bgColor = 0;
+	FlxG.cameras.add(stickerCam, false);
+	
 	var grpStickers = new FlxTypedSpriteGroup();
 	grpStickers.scrollFactor.set();
-	grpStickers.camera = game.camOther;
+	grpStickers.camera = stickerCam;
 	
 	var xPos:Float = -100;
 	var yPos:Float = -100;
@@ -204,27 +215,30 @@ function stickers(inst) {
 		}
 	}
 	shuffleArray(grpStickers.members);
+	if (grpStickers == null) return;
 	var i:Int = 0;
 	for (sticker in grpStickers.members) {
 		var timing = FlxMath.remapToRange(i, 0, grpStickers.members.length, 0, 0.9);
 		var isLast:Bool = (i >= grpStickers.members.length - 1);
 		new FlxTimer().start(timing, () -> {
-			if (grpStickers == null) return;
-			FlxG.sound.play(inArray(stickerSounds, 0, stickerSounds.length - 1));
+			if (stickerSounds.length > 0)
+				FlxG.sound.play(stickerSounds[FlxG.random.int(0, stickerSounds.length - 1)]);
 			sticker.visible = true;
-			var frameTimer:Int = FlxG.random.int(0, 2);
-			if (isLast) frameTimer = 2;
+			var frameTimer:Int = (isLast ? 2 : FlxG.random.int(0, 2));
 			new FlxTimer().start((1 / 24) * frameTimer, () -> {
 				sticker.scale.x = sticker.scale.y = FlxG.random.float(0.97, 1.02);
-				if (isLast) {
+				if (isLast)
 					new FlxTimer().start(.5, () -> resultsClose(inst));
-				}
 			});
 		});
-		i ++;
+		i += 1;
+	}
+	if (grpStickers.length < 1) {
+		new FlxTimer().start(.5, () -> resultsClose(inst));
+		return;
 	}
 	inst.add(grpStickers);
-	var lastOne = inArray(grpStickers.members, grpStickers.members.length - 1);
+	var lastOne = grpStickers.members[grpStickers.members.length - 1];
 	if (lastOne != null) {
 		lastOne.updateHitbox();
 		lastOne.screenCenter();
@@ -235,9 +249,9 @@ function shuffleArray(array) {
 	var maxValidIndex = array.length - 1;
 	for (i in 0...maxValidIndex) {
 		var j = FlxG.random.int(i, maxValidIndex);
-		var tmp = inArray(array, i);
-		setArray(array, i, inArray(array, j));
-		setArray(array, j, tmp);
+		var tmp = array[i];
+		array[i] = array[j];
+		array[j] = tmp;
 	}
 }
 var prevRating:Int = -1;
@@ -256,7 +270,7 @@ function updateClearNums(inst, rating, target) {
 		var done:Bool = (n == target);
 		FlxG.sound.play(Paths.sound(done ? 'confirmMenu' : 'scrollMenu'));
 		prevRating = n;
-		var sn = Std.string(n);
+		var sn:String = Std.string(n);
 		var i = clearnumGrp.members.length;
 		while (clearnumGrp.members.length < sn.length) {
 			var num:FlxSprite = new FlxSprite(i * -68);
@@ -264,13 +278,13 @@ function updateClearNums(inst, rating, target) {
 			for (i in 0...10) num.animation.addByPrefix(Std.string(i), 'number ' + i, 24, false);
 			num.animation.play('0');
 			clearnumGrp.add(num);
-			i ++;
+			i += 1;
 		}
 		i = sn.length - 1;
 		for (num in clearnumGrp.members) {
 			var n = sn.charAt(i);
 			num.animation.play(n);
-			i --;
+			i -= 1;
 			if (done) num.setColorTransform(0, 0, 0, 1, 255, 255, 255);
 		}
 		if (done) {
@@ -323,11 +337,13 @@ function getRank(percent) {
 	return 'SHIT';
 }
 function resultsScreen(inst) {
+	cam = game.camOther;//(inst == game ? game.camOther : FlxG.camera);
+	
 	inResults = true;
 	resultsActive = true;
 	game.playbackRate = 1;
-	game.camHUD.visible = true;
-	game.camHUD.alpha = 1;
+	cam.visible = true;
+	cam.alpha = 1;
 	for (grp in [game.noteGroup, game.uiGroup]) {
 		game.remove(grp);
 	}
@@ -385,61 +401,61 @@ function resultsScreen(inst) {
 		case 'PERFECT':
 			bf = new FlxAnimate(1342, 370);
 			Paths.loadAnimateAtlas(bf, 'resultScreen/results-bf/resultsPERFECT');
-			bf.anim.onComplete = () -> {
+			bf.anim.onComplete.add(() -> {
 				if (bf != null) {
 					bf.anim.curFrame = 137;
 					bf.anim.play();
 				}
-			};
+			});
 			heartsPerfect = new FlxAnimate(1342, 370);
 			Paths.loadAnimateAtlas(heartsPerfect, 'resultScreen/results-bf/resultsPERFECT/hearts');
-			heartsPerfect.anim.onComplete = () -> {
+			heartsPerfect.anim.onComplete.add(() -> {
 				heartsPerfect.anim.curFrame = 43;
 				heartsPerfect.anim.play();
-			}
+			});
 			heartsPerfect.antialiasing = ClientPrefs.data.antialiasing;
 			heartsPerfect.scrollFactor.set();
 			heartsPerfect.alpha = .0001;
 		case 'EXCELLENT':
 			bf = new FlxAnimate(1329, 429);
 			Paths.loadAnimateAtlas(bf, 'resultScreen/results-bf/resultsEXCELLENT');
-			bf.anim.onComplete = () -> {
+			bf.anim.onComplete.add(() -> {
 				if (bf != null) {
 					bf.anim.curFrame = 28;
 					bf.anim.play();
 				}
-			};
+			});
 		case 'GREAT':
 			bf = new FlxAnimate(929, 363);
 			Paths.loadAnimateAtlas(bf, 'resultScreen/results-bf/resultsGREAT/bf');
 			bf.scale.set(.93, .93);
-			bf.anim.onComplete = () -> {
+			bf.anim.onComplete.add(() -> {
 				if (bf != null) {
 					bf.anim.curFrame = 15;
 					bf.anim.play();
 				}
-			};
+			});
 			
 			gf = new FlxAnimate(802, 331);
 			Paths.loadAnimateAtlas(gf, 'resultScreen/results-bf/resultsGREAT/gf');
 			gf.scale.set(.93, .93);
-			gf.anim.onComplete = () -> {
+			gf.anim.onComplete.add(() -> {
 				if (gf != null) {
 					gf.anim.curFrame = 9;
 					gf.anim.play();
 				}
-			};
+			});
 		case 'SHIT':
 			bf = new FlxAnimate(0, 20);
 			Paths.loadAnimateAtlas(bf, 'resultScreen/results-bf/resultsSHIT');
-			bf.anim.addBySymbol('intro', 'Intro', 24, true, 0, 0);
-			bf.anim.addBySymbol('loop', 'Loop Start', 24, true, 0, 0);
-			bf.anim.onComplete = () -> {
+			bf.anim.addBySymbol('intro', 'Intro', 24, false, 0, 0);
+			bf.anim.addBySymbol('loop', 'Loop Start', 24, false, 0, 0);
+			bf.anim.onComplete.add(() -> {
 				if (bf != null) {
 					bf.anim.curFrame = 149; //broken...........
 					bf.anim.play();
 				}
-			};
+			});
 		default:
 			bf = new FlxSprite(640, -200);
 			bf.frames = Paths.getSparrowAtlas('resultScreen/resultBoyfriendGOOD');
@@ -490,24 +506,24 @@ function resultsScreen(inst) {
 	//var b:FlxBitmapText = new FlxBitmapText(null, null, null, FlxBitmapFont.fromMonospace(Paths.image('resultScreen/alphabet'), characters, new FlxBasePoint(49, 62)));
 	//b.text = 'ABCDefgh';
 	
-	bg.camera = game.camHUD;
+	bg.camera = cam;
 	bg.scrollFactor.set();
 	inst.add(bg);
 	inst.add(bgFlash);
 	bgFlash.alpha = 0.0001;
-	bgFlash.camera = game.camHUD;
+	bgFlash.camera = cam;
 	
-	var artist:String = PlayState.SONG.artist == null ? '' : (' by ' + PlayState.SONG.artist);
-	var songText:String = PlayState.isStoryMode ? WeekData.getCurrentWeek().storyName.toUpperCase() : (PlayState.SONG.song + artist);
+	var artist:String = PlayState.SONG.artist == null ? PlayState.SONG.song : getPhrase('song_meta', '{1} by {2}', [PlayState.SONG.song, PlayState.SONG.artist]);
+	var songText:String = PlayState.isStoryMode ? WeekData.getCurrentWeek().storyName.toUpperCase() : artist;
 	var rm = Math.sin(-4.4 / 180 * Math.PI);
 	
 	grpInfoTexts = new FlxTypedSpriteGroup();
 	grpInfoTexts.setPosition(555, 187 - 75);//87
 	grpInfoTexts.alpha = .0001;
 	grpInfoTexts.scrollFactor.set();
-	grpInfoTexts.camera = game.camHUD;
+	grpInfoTexts.camera = cam;
 	
-	var difficulty:String = Difficulty.getString();
+	var difficulty:String = Difficulty.list[PlayState.storyDifficulty];
 	var diffImg = Paths.image('resultScreen/diff_' + difficulty.toLowerCase());
 	if (diffImg == null) diffImg = Paths.image('resultScreen/diff_unknown');
 	var diffText:FlxSprite = new FlxSprite().loadGraphic(diffImg);
@@ -518,19 +534,19 @@ function resultsScreen(inst) {
 	var infoClearPercent = createRatingNums(grpInfoTexts, diffText.width + 22 + 73, -72 + (diffText.width + 50) * rm + 10, clearStatus);
 	infoClearPercent.visible = false;
 	//bgTop.scrollFactor.set();
-	//inst.add(bgTop);
+	//inst.add(bgTop);*/
 	
-	/*var bgCam = new FlxCamera();
+	var bgCam = new FlxCamera();
 	bgCam.bgColor = 0;
-	FlxG.game.addChildAt(bgCam.flashSprite, FlxG.game.getChildIndex(game.camHUD.flashSprite) - 1);
-	FlxG.cameras.list.insert(FlxG.cameras.list.indexOf(game.camHUD) - 1, bgCam);*/
+	FlxG.game.addChildAt(bgCam.flashSprite, FlxG.game.getChildIndex(cam.flashSprite) - 1);
+	FlxG.cameras.list.insert(FlxG.cameras.list.indexOf(cam) - 1, bgCam);
 	
 	scrollHA = new FlxTypedSpriteGroup();
 	scrollHA.scrollFactor.set();
-	scrollHA.camera = game.camHUD;
+	scrollHA.camera = cam;
 	scrollHB = new FlxTypedSpriteGroup();
 	scrollHB.scrollFactor.set();
-	scrollHB.camera = game.camHUD;
+	scrollHB.camera = cam;
 	var rrank = (rank == 'SHIT' ? 'LOSS' : rank);
 	var rankImage = Paths.image('resultScreen/rankText/rankScroll' + rrank);
 	if (rankImage != null) {
@@ -555,18 +571,18 @@ function resultsScreen(inst) {
 	scrollV = new FlxBackdrop(rankImageB, 0x10, 0, 30);
 	scrollV.x = FlxG.width - 45;
 	scrollV.scrollFactor.set();
-	scrollV.camera = game.camHUD;
+	scrollV.camera = cam;
 	
 	clearImage = new FlxSprite(900 - 75, 400 - 75).loadGraphic(Paths.image('resultScreen/clearPercent/clearPercentText'));
 	clearImage.scrollFactor.set();
-	clearImage.camera = game.camHUD;
+	clearImage.camera = cam;
 	clearnumGrp = new FlxTypedSpriteGroup(965 - 75, 475 - 75);
 	clearnumGrp.scrollFactor.set();
-	clearnumGrp.camera = game.camHUD;
+	clearnumGrp.camera = cam;
 	
 	for (i in [resultsGf, resultsBf, heartsPerfect, grpInfoTexts, soundSystem, resultsBar, cats, score, hiscore, resultsTitle]) {
 		if (i == null) continue;
-		i.camera = game.camHUD;
+		i.camera = cam;
 		i.scrollFactor.set();
 		i.alpha = .0001;
 		inst.add(i);
@@ -595,15 +611,15 @@ function resultsScreen(inst) {
 		num.animation.play(n == '' ? 'disabled' : Std.string(n));
 		num.alpha = .0001;
 		num.scrollFactor.set();
-		num.camera = game.camHUD;
+		num.camera = cam;
 		scoreNums.push(num);
 		inst.add(num);
-		i ++;
+		i += 1;
 	}
 	
 	FlxG.sound.music.stop();
-	resultsMusic = Paths.music('results' + rank);
-	if (resultsMusic == null) resultsMusic = Paths.music('resultsNORMAL');
+	resultsMusic = Paths.music('results' + rank); //todo: fix bum ass volume sound on NORMAL music
+	if (resultsMusic == null || resultsMusic.length < 1000) resultsMusic = Paths.music('resultsNORMAL');
 	var resultsIntro = Paths.music('results' + rank + '-intro');
 	
 	var delayData = rankDelay.get(rank);
@@ -614,7 +630,7 @@ function resultsScreen(inst) {
 		var i:Int = 0;
 		for (item in infoClearPercent.members) {
 			if (i > 0) item.setColorTransform(0, 0, 0, 1, 255, 255, 255); //the % doesnt get colored
-			i ++;
+			i += 1;
 		}
 		subTimers.push(new FlxTimer().start(.4, () -> {
 			for (item in infoClearPercent.members) item.setColorTransform();
@@ -672,7 +688,7 @@ function resultsScreen(inst) {
 			if (num.animation.name == 'disabled') {
 				num.animation.play('main', true);
 			} else {
-				var digit:Int = Std.int(num.animation.name);
+				var digit:Int = num.animation.name;//Std.int(num.animation.name);
 				var finalDigit:Int = digit;
 				var start:Bool = true;
 				num.animation.play('gone');
@@ -692,10 +708,10 @@ function resultsScreen(inst) {
 						}
 						if (start) start = false;
 						else num.animation.finish();
-					}, Std.int(duration / interval)));
+					}, Math.floor(duration / interval)));
 				}));
 			}
-			i ++;
+			i += 1;
 		}
 	}));
 	subTimers.push(new FlxTimer().start(37 / 24, () -> { //bf appear, tally
@@ -717,11 +733,13 @@ function resultsScreen(inst) {
 }
 function tallyDumb(tally, e) {
 	var tallied = updateTally(tally, e * 1000, e * 4);
-	if (tallied) tallyDumb(++ currentTally, e);
+	if (tallied) {
+		currentTally += 1;
+		tallyDumb(currentTally, e);
+	}
 }
-function onCustomSubstateCreate(substate) {
+function onCustomSubstateCreate(substate)
 	if (substate == 'results') resultsScreen(CustomSubstate.instance);
-}
 function exitSong() {
 	MusicBeatState.switchState(PlayState.isStoryMode ? new StoryMenuState() : new FreeplayState());
 	FlxG.sound.playMusic(Paths.music('freakyMenu'));
@@ -758,7 +776,7 @@ function resultsClose(inst) {
 	
 	var fade:FlxSprite = new FlxSprite(FlxG.width * .5, FlxG.height * .5).makeGraphic(1, 1, 0xff000000);
 	fade.scale.set(FlxG.width * 2, FlxG.height * 2);
-	fade.cameras = [game.camOther];
+	fade.camera = stickerCam;
 	fade.scrollFactor.set();
 	fade.alpha = 0;
 	inst.add(fade);
@@ -770,8 +788,11 @@ function resultsClose(inst) {
 	});
 }
 function onDestroy() {
-	FlxTween.tween(Main.fpsVar, {alpha: 1}, .4, {ease: FlxEase.circInOut});
-	if (shownResults) FlxG.sound.playMusic(Paths.music('freakyMenu'));
+	if (shownResults) {
+		FlxTween.tween(Main.fpsVar, {alpha: 1}, .4, {ease: FlxEase.circInOut});
+		FlxG.sound.playMusic(Paths.music('freakyMenu'));
+	}
+	return;
 }
 function resultsUpdate(inst, e) {
 	if (!resultsActive) return;
@@ -791,28 +812,22 @@ function resultsUpdate(inst, e) {
 		FlxTween.tween(grpInfoTexts, {y: grpInfoTexts.y + 75}, .5, {ease: FlxEase.quartOut});
 		subTimers.push(new FlxTimer().start(1.5, moveAlphabets));
 	}
-	var close:Bool = inst.controls.ACCEPT || (FlxG.android != null && FlxG.android.justReleased.BACK);
+	var close:Bool = inst.controls.ACCEPT || inst.controls.BACK || (FlxG.android != null && FlxG.android.justReleased.BACK);
 	if (close) {
-		if (PlayState.isStoryMode) stickers(inst);
-		else resultsClose(inst);
+		stickers(inst);
 		resultsActive = false;
 	}
 	tallyDumb(currentTally, e);
 }
-function onUpdatePost(e) {
-	if (inResults) {
-		resultsUpdate(game, e);
-		game.camGame.zoom = 1; //lol im lazy
-	}
-	return;
-}
+function onCustomSubstateUpdate(substate, e)
+	if (substate == 'results') resultsUpdate(game, e);
 function createTally(inst, x, y, color, score) {
 	var grp = new FlxTypedSpriteGroup(x, y);
-	grp.camera = game.camHUD;
+	grp.camera = cam;
 	grp.scrollFactor.set();
 	grp.color = color;
 	inst.add(grp);
-	tallies.push({first: false, tally: 0, score: Std.int(score), wait: 0, group: grp});
+	tallies.push({first: false, tally: 0, score: Math.floor(score), wait: 0, group: grp});
 }
 function updateTally(index, count, time) {
 	var tally = tallies[index];
@@ -832,12 +847,12 @@ function updateTally(index, count, time) {
 			for (n in 0...10) num.animation.addByPrefix(Std.string(n), n + ' small', 24, false);
 			num.antialiasing = ClientPrefs.data.antialiasing;
 			tallyGrp.add(num);
-			i ++;
+			i += 1;
 		}
 		var i = 0;
 		for (num in tallyGrp.members) {
 			num.animation.play(count.charAt(i), true);
-			i ++;
+			i += 1;
 		}
 	}
 	return (tally.wait >= 1);
@@ -859,7 +874,7 @@ function createAlphabet(group, x, y, text) {
 			letter.angle = angle;
 			group.add(letter);
 		}
-		i ++;
+		i += 1;
 	}
 }
 function createRatingNums(group, x, y, rating) {
@@ -884,7 +899,7 @@ function createRatingNums(group, x, y, rating) {
 		//sprite.y -= sprite.height;
 		clearPercentSmall.add(sprite);
 		sprite.antialiasing = ClientPrefs.data.antialiasing;
-		i ++;
+		i += 1;
 	}
 	group.add(clearPercentSmall);
 	return clearPercentSmall;
@@ -894,23 +909,15 @@ function moveAlphabets() { //move alphabet and stuff
 	grpInfoTexts.velocity.x = -100;
 	grpInfoTexts.velocity.y = Math.abs(100 * rm);
 }
-function inArray(array, pos) { //array access lags workaround???
-	if (pos >= array.length) return null;
-    var i = 0;
-    for (item in array) {
-        if (i == pos) return item;
-        i ++;
-    }
-    return null;
-}
-function setArray(array, pos, v) { //this is fucking stupid..
-	if (pos < 0 || pos >= array.length) return null;
-	var readd:Array = [];
-	while (array.length > pos) {
-		var i = array.pop();
-		readd.unshift(i);
+function getPhrase(key, def, values) { //note: move to util
+	if (StringTools.startsWith(MainMenuState.psychEngineVersion, '1.1'))
+		return Language.getPhrase(key, def, values);
+	else {
+		var i:Int = 1;
+		for (val in values) {
+			def = StringTools.replace(def, '{' + i + '}', val);
+			i += 1;
+		}
+		return def;
 	}
-	readd.shift();
-	readd.unshift(v);
-	while (readd.length > 0) array.push(readd.shift());
 }

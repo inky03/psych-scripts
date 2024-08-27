@@ -175,7 +175,7 @@ function onCreate() {
 		loaded = true;
 	}
 	
-	return Function_Continue;
+	return;
 }
 
 function overrideChara(char) return overrides.exists(char) ? overrides.get(char) : char;
