@@ -15,18 +15,18 @@ feel free to pull request....the code sucks.....
 - [X] ditch get/setPropertyFromGroup methods (not really necessary..)
 - [X] better map access?
 - [ ] make ipairs via Iterator actually do its damn job correctly (it works with members so far, atleast...)
-- [ ] make code good..........
-- [ ] is it possible to optimize methods inside methods?
+- [ ] make code good..
+- [ ] optimizations?
 
 ## usage
 + begin by importing the module with the following snippet:
 	**0.7:**
   ```lua
-  reference = require(callMethodFromClass('Paths', 'modFolders', {'scripts/reference.lua'}):gsub('.lua', ''))`
+  reference = require(callMethodFromClass('Paths', 'modFolders', {'scripts/reference.lua'}):gsub('.lua', ''))
   ```
   **1.0:**
   ```lua
-  reference = require('mods/' .. modFolder .. '/reference')
+  reference = require('mods/' .. modFolder .. '/scripts/reference')
   ```
   this is relative to the folder your mod is in.<br>
   replace the path to the module if necessary!
@@ -82,7 +82,7 @@ imports the following classes:
 | `psychlua.ModchartSprite` | `LuaSprite`, `ModchartSprite` |
 | `states.PlayState` | `PlayState` |
 | `StringTools` | `StringTools` |
-| `PlayState.instance` (game) | `game` |
+| `PlayState.instance` | `game` |
 
 **EXAMPLES**
 ```lua
@@ -269,7 +269,7 @@ set of functions designed for creating and running hscript code.<br>
 these functions are (somewhat) tied to the reference module, which is part of the reason they're in the same file.
 
 ### hscript("code", ?{variables})
-alias for **reference.hscript("code", ?{variables})**
+alias for [reference.hscript](#referencehscriptcode-variables).
 
 ### hscript.new("id", "code", ?{variables})
 creates a new hscript instance with the corresponding id / tag.<br>
@@ -359,7 +359,7 @@ local script = hscript:new([[
 		bf.y += y;
 	}
 ]], {bf = game.boyfriend})
-script:run() -- executes the script for the first time (only executing the body)
+script:run() -- executes the script for the first time (only executing the body), printing "hi :]"
 script:run('moveBF', {50, 10}) -- runs the moveBF function in the hscript instance
 script:moveBF(50, 10) -- ditto, alternative usage
 ```
@@ -374,7 +374,8 @@ script:destroy()
 ```
 
 ### hscript:reset()
-wipes the hscript instance.
+wipes the hscript instance.<br>
+after wiping the script, you may set the code again with the [code](#hscriptinstancecode) and [vars](#hscriptinstancevars) variables.
 
 **EXAMPLES**
 ```lua
@@ -411,10 +412,8 @@ list of variables to pass to the hscript instance; this can be modified.
 
 **EXAMPLES**
 ```lua
-local script = hscript:new([[
-	debugPrint(testVar);
-]])
-script:run() -- fails
+local script = hscript:new("debugPrint(testVar);")
+script:run() -- fails, as no "testVar" variable is set
 script.vars = {testVar = 1234} -- add var
 script:run() -- print "1234"
 ```
