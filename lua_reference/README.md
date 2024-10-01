@@ -1,6 +1,6 @@
 # "reference" module
-**CURRENT VERSION: 1.1.5 (reference115)**<br>
-psych versions (known to be) supported: **0.7.3** (sscript 7.7.0), **1.0 ACTIONS** (hscript-iris)
+**CURRENT VERSION: 1.1.6 (Reference116)**<br>
+psych versions (known to be) supported: **sscript 7.7.0** (used in 0.7.3), **hscript-iris 1.0.2+** (used in 1.0 ACTION BUILDS)
 
 my shitty stupid useless experiment module, using metatables!!<br>
 this allows you to make "references" to objects, lua sprites and classes in game without having to type getProperty / setProperty on everything, allowing syntax to look almost similar to using source code / haxe!!
@@ -8,21 +8,23 @@ this allows you to make "references" to objects, lua sprites and classes in game
 this module adds two important globals; [reference](#reference) and [hscript](#hscript).<br>
 usage is explained below, example(a little outdated) provided in **reference_example.lua**<br>
 
+**NOTE (09/30/24):** hscript in recent 1.0 commits is broken (again... shocker!); the module WILL work on the latest builds, but due to these breaking changes runHaxeFunction has been replaced by a callback in hscript. expect it to be a tad slower maybe? i havent benchmarked this, and honestly i dont want to, but it should be relatively stable; so far i haven't encountered further issues
+
 ## todo
 feel free to pull request....the code sucks.....
+- [ ] make ipairs via Iterator actually do its damn job correctly (it works with members so far, atleast...)
+- [ ] make code GOOD!!!
+- [ ] optimize methods inside methods?
 - [X] calling destroy() from a reference should also call reference.destroyInstance
 - [X] fix access to typed groups (a hacky solution is being used right now for basic uses, but is not applicable for most cases)
 - [X] ditch get/setPropertyFromGroup methods (not really necessary..)
 - [X] better map access?
-- [ ] make ipairs via Iterator actually do its damn job correctly (it works with members so far, atleast...)
-- [ ] make code good..........
-- [ ] is it possible to optimize methods inside methods?
 
 ## usage
 + begin by importing the module with the following snippet:
-	**0.7:**
+  **0.7:**
   ```lua
-  reference = require(callMethodFromClass('Paths', 'modFolders', {'scripts/reference.lua'}):gsub('.lua', ''))`
+  reference = require(callMethodFromClass('Paths', 'modFolders', {'scripts/Reference.lua'}):gsub('.lua', ''))`
   ```
   **1.0:**
   ```lua
@@ -344,7 +346,8 @@ debugPrint(script.testBool) -- prints "true"
 > if the main body hasnt been executed yet, executing a function will execute it regardless.
 
 executes code or a function in a previously created hscript instance.<br>
-you can also call this in the form `hscriptInstance:functionName(argument1, argument2...)`
+returns the function's return value, if any (returns nil otherwise)<br>
+you can also call this in the form `hscriptInstance:functionName(argument1, argument2...)`<br>
 if no function name is provided, the main body of the function will run instead.
 - `functionName` optional; name of the function to execute
 - `functionArguments` optional; arguments to pass to the function to execute
@@ -358,10 +361,14 @@ local script = hscript:new([[
 		bf.x += x;
 		bf.y += y;
 	}
+	function example(val) {
+		return val;
+	}
 ]], {bf = game.boyfriend})
-script:run() -- executes the script for the first time (only executing the body)
+script:run() -- executes the script for the first time (only executing the body, printing the 'hi :]')
 script:run('moveBF', {50, 10}) -- runs the moveBF function in the hscript instance
 script:moveBF(50, 10) -- ditto, alternative usage
+debugPrint(script:example(123)) -- prints 123
 ```
 
 ### hscript:destroy()
