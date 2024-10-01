@@ -8,7 +8,8 @@ function blinky:new(name, maze, data)
 
 	new.elroy = 0
 	new.elroyPoint = new.lvData.elroy_dots or 0
-	new:addEventListener('preMove', new.elroyStuff)
+	new:addEventListener('update', new.elroyStuff)
+	new:addEventListener('postKilled', new.updateEyeAnim)
 	currentState:addEventListener('pelletEaten', function(pac, eaten) new:detectElroy(eaten) end)
 	return new
 end

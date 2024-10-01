@@ -111,7 +111,7 @@ function ghost:unfrighten()
 	util.shaderSet(self.sprite.shader, {r = self.color})
 	util.shaderSet(self.eyes.shader, {g = {1; 1; 1}})
 	if self.frightBy then self.frightBy:dispatchEvent('onUnfrighted', self.frightBy, self) end
-	self:dispatchEvent('unfright', self)
+	self:dispatchEvent('unfrighted', self)
 end
 function ghost:frighten(culprit, duration)
 	if self.dead then return end
@@ -125,7 +125,7 @@ function ghost:frighten(culprit, duration)
 	self.frightTime = 0
 	util.shaderSet(self.sprite.shader, {r = self.frightColor})
 	util.shaderSet(self.eyes.shader, {g = {1; 0xb8 / 255; 0xae / 255}})
-	self:dispatchEvent('frighted', culprit, self, duration)
+	self:dispatchEvent('frighted', self, culprit, duration)
 	if culprit then culprit:dispatchEvent('onFrighted', culprit, self, duration) end
 end
 function ghost:kill(culprit)
@@ -146,6 +146,7 @@ function ghost:kill(culprit)
 			culprit.sprite.playAnim(prev)
 			self.eyes.playAnim('sad')
 			self.justKilled = false
+			self:dispatchEvent('postKilled', self)
 		end})
 	end
 end
