@@ -8,6 +8,7 @@ function ghost:new(name, color, maze, data)
 	local new = entity:new(name, maze, data)
 	new.fright = 0
 	new.dead = false
+	new.frightTime = 0
 	new.inTunnel = false
 	new.specialTile = nil
 	new.mode = ghostMode.scatter
@@ -121,6 +122,7 @@ function ghost:frighten(culprit, duration)
 	local color = self.color
 	self.fright = duration
 	self.frightBy = culprit
+	self.frightTime = 0
 	util.shaderSet(self.sprite.shader, {r = self.frightColor})
 	util.shaderSet(self.eyes.shader, {g = {1; 0xb8 / 255; 0xae / 255}})
 	self:dispatchEvent('frighted', culprit, self, duration)
@@ -159,7 +161,7 @@ function ghost:housePosition()
 	return {X = house.x; Y = house.y}
 end
 
-function ghost:tick()
+function ghost:recalc()
 	local tile = self.tilePosition
 	local ghostSpeed = self.lvData.ghost_speed
 	self.specialTile = self.maze:getSpecial(util.round(tile.X), util.round(tile.Y))
@@ -172,7 +174,18 @@ function ghost:tick()
 		end
 	else
 		self.speed = ghostSpeed.fright * util.percentToSpeed
+		local flashPoint = 140 -- reference !!
+		local flashStuff = (self.frightTime) % 28
+		if self.fright <= flashPoint and (flashStuff == 0 or flashStuff == 14 or self.fright == flashPoint) then
+			local flashIn = (flashStuff < 14)
+			util.shaderSet(self.sprite.shader, {r = flashIn and {1, 1, 1} or self.frightColor})
+			util.shaderSet(self.eyes.shader, {g = flashIn and {1, 0, 0} or {1, 0xb8 / 255; 0xae / 255}})
+		end
 	end
+end
+function ghost:tick()
+	self:recalc()
+	local tile = self.tilePosition
 	if util.isInt(tile.X) and util.isInt(tile.Y) then
 		local target = self:target()
 		self.curDir.X = self.nextDir.X
@@ -202,6 +215,7 @@ function ghost:update()
 	entity.update(self)
 	if self.fright > 0 then
 		self.fright = self.fright - 1
+		self.frightTime = self.frightTime + 1
 		self.eyes.animation.curAnim.curFrame = (self.sprite.animation.curAnim.curFrame < 2 and 4 or 5)
 		--debugPrint(self.name .. ' : ' .. self.fright)
 		if self.fright <= 0 then
@@ -209,6 +223,7 @@ function ghost:update()
 			self:unfrighten()
 		end
 	end
+	self:recalc()
 end
 
 function ghost:updatePos()

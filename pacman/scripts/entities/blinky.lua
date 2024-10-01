@@ -33,18 +33,21 @@ function blinky:updateEyeAnim()
 	end
 end
 function blinky:elroyStuff()
-	if not currentState.pelletCount or self.dead or self.fright > 0 then return end
+	if not currentState.pelletCount or self.dead or self.fright > 0 or self.inTunnel then return end
 	if self.elroy == 2 then
 		self.speed = self.lvData.ghost_speed.elroy2 * util.percentToSpeed
 	elseif self.elroy == 1 then
 		self.speed = self.lvData.ghost_speed.elroy1 * util.percentToSpeed
 	end
 end
+function blinky:ghostsOut() -- need to implement this once ghost house behavior is done
+	return true
+end
 
 function blinky:target()
 	if self.fright > 0 then return nil end
 	if self.dead then return self:housePosition() end
-	if self.mode == ghostMode.scatter then return {X = self.maze.meta.width - 4; Y = 0} end
+	if self.mode == ghostMode.scatter and (self.elroy == 0 or not self.ghostsOut()) then return {X = self.maze.meta.width - 4; Y = 0} end
 	return self:closestPacman().tilePosition
 end
 

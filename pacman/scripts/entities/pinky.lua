@@ -13,7 +13,7 @@ function pinky:new(name, maze, data)
 end
 
 function pinky:updateAward()
-	if self.fright > 0 then
+	if self.fright > 0 or self.mode == ghostMode.scatter then
 		self.onFlick = false
 		return
 	end

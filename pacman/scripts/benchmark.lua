@@ -2,7 +2,7 @@ function onCreate()
 	runHaxeCode([[
 		function testFunc() {
 			array = [];
-			for (i in 0...100) array.push(i % 7);
+			for (i in 0...1000000) array.push(i % 7);
 			return array.length;
 		}
 		createGlobalCallback('testFunc', testFunc);
