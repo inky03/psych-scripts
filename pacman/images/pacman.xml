@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<TextureAtlas imagePath="pacman.png">
+	<!-- Created with Adobe Flash CS6 version 12.0.0.481 -->
+	<!-- http://www.adobe.com/products/flash.html -->
+	<SubTexture name="pacman aggressive0000" x="187" y="115" width="63" height="57" frameX="-2" frameY="-8" frameWidth="65" frameHeight="65"/>
+	<SubTexture name="pacman aggressive0001" x="187" y="174" width="59" height="60" frameX="-6" frameY="-5" frameWidth="65" frameHeight="65"/>
+	<SubTexture name="pacman aggressive0002" x="1" y="189" width="56" height="63" frameX="-3" frameY="0" frameWidth="65" frameHeight="65"/>
+	<SubTexture name="pacman aggressive0003" x="124" y="178" width="58" height="61" frameX="0" frameY="-2" frameWidth="65" frameHeight="65"/>
+	<SubTexture name="pacman caught0000" x="73" y="1" width="68" height="63" frameX="-2" frameY="0" frameWidth="70" frameHeight="63"/>
+	<SubTexture name="pacman caught0001" x="1" y="1" width="70" height="63"/>
+	<SubTexture name="pacman caught0002" x="1" y="1" width="70" height="63"/>
+	<SubTexture name="pacman caught0003" x="59" y="190" width="60" height="58" frameX="-9" frameY="-4" frameWidth="70" frameHeight="63"/>
+	<SubTexture name="pacman caught0004" x="59" y="190" width="60" height="58" frameX="-9" frameY="-4" frameWidth="70" frameHeight="63"/>
+	<SubTexture name="pacman die0000" x="179" y="298" width="62" height="47" frameX="-4" frameY="-9" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0001" x="179" y="298" width="62" height="47" frameX="-4" frameY="-9" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0002" x="179" y="298" width="62" height="47" frameX="-4" frameY="-9" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0003" x="179" y="298" width="62" height="47" frameX="-4" frameY="-9" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0004" x="108" y="304" width="68" height="40" frameX="-1" frameY="-14" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0005" x="108" y="304" width="68" height="40" frameX="-1" frameY="-14" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0006" x="108" y="304" width="68" height="40" frameX="-1" frameY="-14" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0007" x="108" y="304" width="68" height="40" frameX="-1" frameY="-14" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0008" x="1" y="314" width="69" height="34" frameX="-1" frameY="-21" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0009" x="1" y="314" width="69" height="34" frameX="-1" frameY="-21" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0010" x="1" y="314" width="69" height="34" frameX="-1" frameY="-21" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0011" x="1" y="314" width="69" height="34" frameX="-1" frameY="-21" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0012" x="119" y="347" width="68" height="30" frameX="-1" frameY="-27" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0013" x="119" y="347" width="68" height="30" frameX="-1" frameY="-27" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0014" x="119" y="347" width="68" height="30" frameX="-1" frameY="-27" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0015" x="119" y="347" width="68" height="30" frameX="-1" frameY="-27" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0016" x="119" y="379" width="70" height="24" frameX="0" frameY="-34" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0017" x="119" y="379" width="70" height="24" frameX="0" frameY="-34" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0018" x="119" y="379" width="70" height="24" frameX="0" frameY="-34" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0019" x="119" y="379" width="70" height="24" frameX="0" frameY="-34" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0020" x="189" y="347" width="63" height="27" frameX="-2" frameY="-33" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0021" x="189" y="347" width="63" height="27" frameX="-2" frameY="-33" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0022" x="189" y="347" width="63" height="27" frameX="-2" frameY="-33" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0023" x="189" y="347" width="63" height="27" frameX="-2" frameY="-33" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0024" x="1" y="350" width="49" height="32" frameX="-9" frameY="-31" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0025" x="1" y="350" width="49" height="32" frameX="-9" frameY="-31" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0026" x="1" y="350" width="49" height="32" frameX="-9" frameY="-31" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0027" x="1" y="350" width="49" height="32" frameX="-9" frameY="-31" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0028" x="191" y="376" width="38" height="36" frameX="-16" frameY="-31" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0029" x="191" y="376" width="38" height="36" frameX="-16" frameY="-31" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0030" x="191" y="376" width="38" height="36" frameX="-16" frameY="-31" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0031" x="191" y="376" width="38" height="36" frameX="-16" frameY="-31" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0032" x="223" y="1" width="25" height="37" frameX="-23" frameY="-31" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0033" x="223" y="1" width="25" height="37" frameX="-23" frameY="-31" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0034" x="223" y="1" width="25" height="37" frameX="-23" frameY="-31" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0035" x="223" y="1" width="25" height="37" frameX="-23" frameY="-31" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0036" x="126" y="66" width="12" height="37" frameX="-30" frameY="-32" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0037" x="126" y="66" width="12" height="37" frameX="-30" frameY="-32" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0038" x="52" y="350" width="18" height="47" frameX="-25" frameY="-17" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0039" x="52" y="350" width="18" height="47" frameX="-25" frameY="-17" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0040" x="1" y="384" width="38" height="36" frameX="-17" frameY="-9" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0041" x="72" y="346" width="45" height="49" frameX="-12" frameY="-1" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0042" x="72" y="346" width="45" height="49" frameX="-12" frameY="-1" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0043" x="72" y="346" width="45" height="49" frameX="-12" frameY="-1" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0044" x="1" y="254" width="48" height="50" frameX="-11" frameY="-1" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0045" x="1" y="254" width="48" height="50" frameX="-11" frameY="-1" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0046" x="208" y="54" width="45" height="51" frameX="-11" frameY="0" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0047" x="208" y="54" width="45" height="51" frameX="-11" frameY="0" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman die0048" x="1" y="1" width="0" height="0" frameX="-5" frameY="4" frameWidth="70" frameHeight="69"/>
+	<SubTexture name="pacman munch0000" x="1" y="128" width="60" height="59" frameX="-1" frameY="-2" frameWidth="61" frameHeight="63"/>
+	<SubTexture name="pacman munch0001" x="64" y="66" width="60" height="60" frameX="0" frameY="-3" frameWidth="61" frameHeight="63"/>
+	<SubTexture name="pacman munch0002" x="59" y="250" width="47" height="62" frameX="0" frameY="-1" frameWidth="61" frameHeight="63"/>
+	<SubTexture name="pacman munch0003" x="63" y="128" width="59" height="60" frameX="-1" frameY="0" frameWidth="61" frameHeight="63"/>
+	<SubTexture name="pacman sharp0000" x="187" y="115" width="63" height="57" frameX="-2" frameY="-8" frameWidth="65" frameHeight="65"/>
+	<SubTexture name="pacman sharp0001" x="1" y="66" width="61" height="60" frameX="-4" frameY="-8" frameWidth="65" frameHeight="68"/>
+	<SubTexture name="pacman sharp0002" x="121" y="241" width="56" height="61" frameX="-4" frameY="0" frameWidth="65" frameHeight="68"/>
+	<SubTexture name="pacman sharp0003" x="184" y="236" width="58" height="60" frameX="0" frameY="-4" frameWidth="65" frameHeight="68"/>
+	<SubTexture name="pacman whack0000" x="143" y="1" width="78" height="51" frameX="-9" frameY="-15" frameWidth="87" frameHeight="66"/>
+	<SubTexture name="pacman whack0001" x="143" y="1" width="78" height="51" frameX="-9" frameY="-15" frameWidth="87" frameHeight="66"/>
+	<SubTexture name="pacman whack0002" x="126" y="115" width="59" height="61" frameX="-4" frameY="0" frameWidth="87" frameHeight="66"/>
+	<SubTexture name="pacman whack0003" x="126" y="115" width="59" height="61" frameX="-4" frameY="0" frameWidth="87" frameHeight="66"/>
+	<SubTexture name="pacman whack0004" x="143" y="54" width="63" height="59" frameX="0" frameY="-4" frameWidth="87" frameHeight="66"/>
+	<SubTexture name="pacman whack0005" x="143" y="54" width="63" height="59" frameX="0" frameY="-4" frameWidth="87" frameHeight="66"/>
+</TextureAtlas>

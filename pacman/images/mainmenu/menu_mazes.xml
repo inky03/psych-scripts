@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<TextureAtlas imagePath="options_mazes.png">
+	<!-- Created with Adobe Flash CS6 version 12.0.0.481 -->
+	<!-- http://www.adobe.com/products/flash.html -->
+	<SubTexture name="mazes selected0000" x="1" y="189" width="477" height="183" frameX="0" frameY="-1" frameWidth="480" frameHeight="186"/>
+	<SubTexture name="mazes selected0001" x="1" y="1" width="474" height="186" frameX="-4" frameY="0" frameWidth="480" frameHeight="186"/>
+	<SubTexture name="mazes selected0002" x="1" y="374" width="479" height="182" frameX="-1" frameY="-2" frameWidth="480" frameHeight="186"/>
+	<SubTexture name="mazes unselected0000" x="1" y="558" width="366" height="116"/>
+	<SubTexture name="mazes unselected0001" x="1" y="558" width="366" height="116"/>
+	<SubTexture name="mazes unselected0002" x="1" y="558" width="366" height="116"/>
+	<SubTexture name="mazes unselected0003" x="1" y="676" width="366" height="116"/>
+	<SubTexture name="mazes unselected0004" x="1" y="676" width="366" height="116"/>
+	<SubTexture name="mazes unselected0005" x="1" y="676" width="366" height="116"/>
+	<SubTexture name="mazes unselected0006" x="1" y="794" width="366" height="116"/>
+	<SubTexture name="mazes unselected0007" x="1" y="794" width="366" height="116"/>
+	<SubTexture name="mazes unselected0008" x="1" y="794" width="366" height="116"/>
+</TextureAtlas>

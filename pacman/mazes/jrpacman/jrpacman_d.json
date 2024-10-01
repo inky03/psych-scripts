@@ -1,0 +1,21 @@
+{
+	"name": "Balloon",
+	"image_path": "jrpacman/d",
+	"loop_x": false,
+	"maze_color": {
+		"r": [255, 255, 0],
+		"b": [0, 104, 0]
+	}
+	"pellet_color": [222, 222, 255],
+	"ghost_house": {
+		"inside": {"y": 13}
+		"exit": {"y": 10}
+	}
+	"bonus": {"y": 16}
+	"ghosts": {
+		"blinky": {"y": 10}
+	}
+	"pacmen": {
+		"pacman": {"y": 22}
+	}
+}

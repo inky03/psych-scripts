@@ -1,0 +1,98 @@
+{
+	"name": "Pac-Man",
+	"levels": {
+		"1": {
+			"bonus": "cherry",
+			"pacman_speed": { //speed: 1 -> 1.25px per tick
+				"normal": 0.8,
+				"power": 0.9
+			},
+			"ghost_speed": {
+				"normal": 0.75,
+				"tunnel": 0.4,
+				"fright": 0.5,
+				"elroy1": 0.8,
+				"elroy2": 0.85
+			},
+			"elroy_dots": 20, //amount of pellets left until blinky starts getting mad
+			"fright_duration": 360, //in ticks (1s -> 60)
+			"mode_switch": [ 420, 1200, 420, 1200, 300, 1200, 300 ] //also in ticks. starts with scatter
+		},
+		"2": {
+			"bonus": "strawberry",
+			"pacman_speed": {
+				"normal": 0.9,
+				"power": 0.95
+			},
+			"ghost_speed": {
+				"normal": 0.85,
+				"tunnel": 0.45,
+				"fright": 0.55,
+				"elroy1": 0.9,
+				"elroy2": 0.95
+			},
+			"elroy_dots": 30,
+			"fright_duration": 300,
+			"mode_switch": [ 420, 1200, 420, 1200, 300, 61994, 1 ]
+		},
+		"3": {
+			"bonus": "orange",
+			"elroy_dots": 40,
+			"fright_duration": 240
+		},
+		"4": { "fright_duration": 180 },
+		"5": {
+			"bonus": "apple",
+			"pacman_speed": {
+				"normal": 1,
+				"power": 1
+			},
+			"ghost_speed": {
+				"normal": 0.95,
+				"tunnel": 0.5,
+				"fright": 0.6,
+				"elroy1": 1,
+				"elroy2": 1.05
+			},
+			"fright_duration": 120,
+			"mode_switch": [ 300, 1200, 300, 1200, 300, 61994, 1 ]
+		},
+		"6": {
+			"elroy_dots": 50,
+			"fright_duration": 300
+		},
+		"7": {
+			"bonus": "melon",
+			"fright_duration": 120
+		},
+		"9": {
+			"bonus": "galaxian",
+			"elroy_dots": 60,
+			"fright_duration": 60
+		},
+		"10": { "fright_duration": 300 },
+		"11": {
+			"bonus": "bell",
+			"fright_duration": 120
+		},
+		"12": {
+			"elroy_dots": 80,
+			"fright_duration": 60
+		},
+		"13": { "bonus": "key" },
+		"14": { "fright_duration": 180 },
+		"15": {
+			"elroy_dots": 100,
+			"fright_duration": 60
+		},
+		"17": { "fright_duration": 0 },
+		"18": { "fright_duration": 60 },
+		"19": {
+			"elroy_dots": 120,
+			"fright_duration": 0
+		},
+		"21": {
+			"pacman_speed": { "normal": 0.9 }
+		}
+	}
+}

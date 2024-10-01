@@ -1,0 +1,21 @@
+{
+	"name": "Drum",
+	"image_path": "jrpacman/c",
+	"loop_x": false,
+	"maze_color": {
+		"r": [255, 184, 81],
+		"b": [68, 184, 220]
+	}
+	"pellet_color": [255, 255, 0],
+	"ghost_house": {
+		"inside": {"y": 13}
+		"exit": {"y": 10}
+	}
+	"bonus": {"y": 16}
+	"ghosts": {
+		"blinky": {"y": 10}
+	}
+	"pacmen": {
+		"pacman": {"y": 22}
+	}
+}

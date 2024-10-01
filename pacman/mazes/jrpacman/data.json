@@ -1,0 +1,33 @@
+{
+	"set_name": "Jr. Pac-Man",
+	"mazes": [
+		{
+			"path": "jrpacman_a",
+			"name": "Bike"
+		},
+		{
+			"path": "jrpacman_b",
+			"name": "Kite"
+		},
+		{
+			"path": "jrpacman_c",
+			"name": "Drum"
+		},
+		{
+			"path": "jrpacman_d",
+			"name": "Balloon"
+		},
+		{
+			"path": "jrpacman_e",
+			"name": "Train"
+		},
+		{
+			"path": "jrpacman_f",
+			"name": "Cat"
+		},
+		{
+			"path": "jrpacman_g",
+			"name": "Beer"
+		}
+	]
+}

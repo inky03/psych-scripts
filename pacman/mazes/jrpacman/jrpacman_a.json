@@ -1,0 +1,20 @@
+{
+	"name": "Bike",
+	"image_path": "jrpacman/a",
+	"loop_x": false,
+	"maze_color": {
+		"r": [255, 184, 81],
+		"b": [33, 33, 255]
+	}
+	"ghost_house": {
+		"inside": {"y": 13}
+		"exit": {"y": 10}
+	}
+	"bonus": {"y": 16}
+	"ghosts": {
+		"blinky": {"y": 10}
+	}
+	"pacmen": {
+		"pacman": {"y": 22}
+	}
+}

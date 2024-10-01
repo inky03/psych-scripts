@@ -1,0 +1,21 @@
+{
+	"set_name": "Ms. Pac-Man",
+	"mazes": [
+		{
+			"path": "mspacman_a",
+			"name": "Maze A"
+		},
+		{
+			"path": "mspacman_b",
+			"name": "Maze B"
+		},
+		{
+			"path": "mspacman_c",
+			"name": "Maze C"
+		},
+		{
+			"path": "mspacman_d",
+			"name": "Maze D"
+		},
+	]
+}

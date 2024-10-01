@@ -1,0 +1,24 @@
+{
+	"song": {
+		"speed": 1,
+		"stage": "pacman",
+		"player1": "bf-pixel",
+		"player2": "bf-pixel",
+		"events": [],
+		"notes": [
+			{
+				"gfSection": false,
+				"altAnim": false,
+				"sectionNotes": [],
+				"bpm": 150,
+				"sectionBeats": 4,
+				"changeBPM": false,
+				"mustHitSection": true
+			}
+		],
+		"gfVersion": "bf-pixel",
+		"bpm": 150,
+		"needsVoices": true,
+		"song": "PACMAN"
+	}
+}

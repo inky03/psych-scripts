@@ -1,0 +1,9 @@
+{
+	"set_name": "Pac-Man",
+	"mazes": [
+		{
+			"path": "pacman",
+			"name": "Maze"
+		}
+	]
+}

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<TextureAtlas imagePath="ghost-body.png">
+	<!-- Created with Adobe Flash CS6 version 12.0.0.481 -->
+	<!-- http://www.adobe.com/products/flash.html -->
+	<SubTexture name="body regeneration0000" x="1" y="1" width="43" height="16" frameX="-9" frameY="0" frameWidth="64" frameHeight="63"/>
+	<SubTexture name="body regeneration0001" x="1" y="1" width="43" height="16" frameX="-9" frameY="0" frameWidth="64" frameHeight="63"/>
+	<SubTexture name="body regeneration0002" x="45" y="1" width="61" height="35" frameX="-1" frameY="-1" frameWidth="64" frameHeight="63"/>
+	<SubTexture name="body regeneration0003" x="45" y="1" width="61" height="35" frameX="-1" frameY="-1" frameWidth="64" frameHeight="63"/>
+	<SubTexture name="body regeneration0004" x="107" y="1" width="63" height="49" frameX="0" frameY="0" frameWidth="64" frameHeight="63"/>
+	<SubTexture name="body regeneration0005" x="107" y="1" width="63" height="49" frameX="0" frameY="0" frameWidth="64" frameHeight="63"/>
+	<SubTexture name="body regeneration0006" x="171" y="1" width="64" height="59" frameX="0" frameY="-1" frameWidth="64" frameHeight="63"/>
+	<SubTexture name="body regeneration0007" x="171" y="1" width="64" height="59" frameX="0" frameY="-1" frameWidth="64" frameHeight="63"/>
+	<SubTexture name="body regeneration0008" x="1" y="61" width="62" height="63" frameX="-1" frameY="0" frameWidth="64" frameHeight="63"/>
+	<SubTexture name="body regeneration0009" x="1" y="61" width="62" height="63" frameX="-1" frameY="0" frameWidth="64" frameHeight="63"/>
+	<SubTexture name="body regeneration0010" x="64" y="61" width="61" height="62" frameX="-2" frameY="-1" frameWidth="64" frameHeight="63"/>
+	<SubTexture name="body regeneration0011" x="64" y="61" width="61" height="62" frameX="-2" frameY="-1" frameWidth="64" frameHeight="63"/>
+	<SubTexture name="ghost body0000" x="126" y="61" width="61" height="64"/>
+	<SubTexture name="ghost body0001" x="126" y="61" width="61" height="64"/>
+	<SubTexture name="ghost body0002" x="188" y="61" width="61" height="62" frameX="0" frameY="0" frameWidth="61" frameHeight="64"/>
+	<SubTexture name="ghost body0003" x="188" y="61" width="61" height="62" frameX="0" frameY="0" frameWidth="61" frameHeight="64"/>
+</TextureAtlas>
