@@ -1,5 +1,5 @@
 # "reference" module
-**CURRENT VERSION: 1.1.6 (Reference116)**<br>
+**CURRENT VERSION: 1.1.9 (Reference119)**<br>
 versions (known to be) supported:
 - **hscript** (used in 0.6.3)
 - **sscript 7.7.0** (used in 0.7.3)
