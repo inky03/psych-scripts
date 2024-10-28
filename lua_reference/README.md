@@ -1,6 +1,9 @@
 # "reference" module
 **CURRENT VERSION: 1.1.6 (Reference116)**<br>
-psych versions (known to be) supported: **sscript 7.7.0** (used in 0.7.3), **hscript-iris 1.0.2+** (used in 1.0 ACTION BUILDS)
+versions (known to be) supported:
+- **hscript** (used in 0.6.3)
+- **sscript 7.7.0** (used in 0.7.3)
+- **hscript-iris 1.0.2+** (used in 1.0 ACTION BUILDS AND RELEASE)
 
 my shitty stupid useless experiment module, using metatables!!<br>
 this allows you to make "references" to objects, lua sprites and classes in game without having to type getProperty / setProperty on everything, allowing syntax to look almost similar to using source code / haxe!!
@@ -8,13 +11,14 @@ this allows you to make "references" to objects, lua sprites and classes in game
 this module adds two important globals; [reference](#reference) and [hscript](#hscript).<br>
 usage is explained below, example(a little outdated) provided in **reference_example.lua**<br>
 
-**NOTE (09/30/24):** hscript in recent 1.0 commits is broken (again... shocker!); the module WILL work on the latest builds, but due to these breaking changes runHaxeFunction has been replaced by a callback in hscript. expect it to be a tad slower maybe? i havent benchmarked this, and honestly i dont want to, but it should be relatively stable; so far i haven't encountered further issues
+**NOTE (09/30/24):** hscript in the 1.0 release is broken (shocker!); the module WILL work on the latest builds, but due to these breaking changes runHaxeFunction has been replaced by a callback in hscript. expect it to be a tad slower maybe? i havent benchmarked this, and honestly i dont want to, but it should be relatively stable; so far i haven't encountered further issues
 
 ## todo
 feel free to pull request....the code sucks.....
 - [ ] make ipairs via Iterator actually do its damn job correctly (it works with members so far, atleast...)
 - [ ] make code GOOD!!!
 - [ ] optimizations?
+- [ ] (BIG MAYBE) 0.6.1 - 0.6.2 support
 - [X] calling destroy() from a reference should also call reference.destroyInstance
 - [X] fix access to typed groups (a hacky solution is being used right now for basic uses, but is not applicable for most cases)
 - [X] ditch get/setPropertyFromGroup methods (not really necessary..)
@@ -22,6 +26,10 @@ feel free to pull request....the code sucks.....
 
 ## usage
 + begin by importing the module with the following snippet:
+  **0.6.3:**
+  ```lua
+  reference = require(runHaxeCode('Paths.modFolders("scripts/Reference.lua")'):gsub('.lua', ''))
+  ```
   **0.7:**
   ```lua
   reference = require(callMethodFromClass('Paths', 'modFolders', {'scripts/Reference.lua'}):gsub('.lua', ''))
@@ -85,6 +93,15 @@ imports the following classes:
 | `states.PlayState` | `PlayState` |
 | `StringTools` | `StringTools` |
 | `PlayState.instance` | `game` |
+
+| Variable | Action |
+|     ---: | :---   |
+| `add(obj)` | Adds `obj` to current state |
+| `insert(pos, obj)` | Inserts `obj` to current state at `pos` |
+| `remove(pos)` | Removes `obj` from current state |
+| `getVar(var)` | Gets value of variable `var` from variables map |
+| `setVar(var, val)` | Sets value of variable `var` from variables map to `val` |
+| `debugPrint(text, color)` | debugPrint override |
 
 **EXAMPLES**
 ```lua

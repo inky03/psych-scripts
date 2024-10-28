@@ -6,7 +6,7 @@
 
 if reference then return end
 reference = {}
-reference.version = '1.1.5'
+reference.version = '1.1.9'
 reference.extreme = false
 reference.warnings = true
 reference.indexFromZero = false
@@ -15,23 +15,33 @@ setmetatable(reference, { __call = function(_, ...) return reference.ref(...) en
 
 local errorPrefix = '<' .. scriptName .. '> '
 local c_VALUE = '_value'
-local ref_insts = 0
 local printColors = {
 	warn = '0xffbf40';
-	error = '0xff4020';
+	error = '0xff3040';
 }
 function reference.warn(warning, col)
 	col = (col or 'warn')
 	if not reference.warnings and col == 'warn' then return end
-	debugPrint(errorPrefix .. warning, printColors[col])
+	local fullStr = (errorPrefix .. warning)
+	if version < '0.7' then
+		if version < '0.6.3' then
+			debugPrint(fullStr) -- ok buddy
+		else
+			runHaxeCode('game.addTextToDebug("' .. fullStr:gsub('"', '\\"') .. '", ' .. printColors[col] .. ')')
+		end
+	else
+		debugPrint(fullStr, printColors[col])
+	end
 end
 
-if version < '.7' then
-	reference.warn('Module is not supported on versions older than 0.7!! Please upgrade', 'error')
+local isPre07 = version < '0.7'
+if not version or version < '0.6.3' then
+	reference.warn('Module not supported in versions older than 0.6.3 - please upgrade!', 'error')
 	close(true)
 	return reference
 end
 
+reference._instincrement = 0
 reference._meta = { --its a load of garbage
 	__index = function(self, var)
 		if var == 'new' and self._class ~= '' and (self._obj == '' or not self._obj) then
@@ -64,29 +74,33 @@ reference._meta = { --its a load of garbage
 local ok, iris = pcall(function() return (callMethodFromClass('Type', 'resolveClass', {'crowplexus.iris.Iris'}) ~= nil) end)
 local useIris = ok and iris
 
-runHaxeCode(
+reference._baseCode =
 	(useIris and [[
 		import crowplexus.iris.Iris;
 		import crowplexus.hscript.Expr;
-	]] or '') .. [[
-	import psychlua.FunkinLua;
-	import psychlua.LuaUtils;
-	import psychlua.HScript;
-	
-	import states.MainMenuState;
-	import haxe.ds.ObjectMap;
-	import haxe.ds.StringMap;
-	import haxe.ds.IntMap;
-	import ValueType;			//retweet
-	import Reflect;
-	import String;
-	import Float;
-	import Array;
-	import Type;
-	import Bool;
-	import Int;
-	import Std;
-	
+	]] or '')
+	.. (isPre07 and [[
+		var debugPrint = PlayState.instance.addTextToDebug;
+	]] or [[
+		import states.MainMenuState;
+		import psychlua.FunkinLua;
+		import psychlua.HScript;
+		
+		import haxe.ds.ObjectMap;
+		import haxe.ds.StringMap;
+		import haxe.ds.IntMap;
+		import ValueType;			//retweet
+		import Reflect;
+		import String;
+		import Float;
+		import Array;
+		import Type;
+		import Bool;
+		import Int;
+		import Std;
+	]])
+	.. [[
+
 	var useIris = (Type.resolveClass('crowplexus.iris.Iris') != null);
 	var isFinal = StringTools.startsWith(MainMenuState.psychEngineVersion, '1.0');
 	var warnColor = ]] .. printColors.warn .. [[;
@@ -95,13 +109,43 @@ runHaxeCode(
 
 	function warn(text) debugPrint("]] .. errorPrefix .. [[ " + text, warnColor);
 	
+	function classOrEnum(n) {
+		var r = Type.resolveClass(n);
+		if (r == null) r = Type.resolveEnum(n);
+		return r;
+	}
 	function isSpecial(val) return (!Std.isOfType(val, Int) && !Std.isOfType(val, Float) && !Std.isOfType(val, String) && !Std.isOfType(val, Bool) && val != null);
-	function isValidClass(classs) return (Std.isOfType(classs, String) && Type.resolveClass(classs) != null);
+	function isValidClass(classs) return (Std.isOfType(classs, String) && classOrEnum(classs) != null);
 	function arrayGet(array, n) return (useIris ? array[n] : array.slice(n, n + 1).shift());
 	function isMap(o) return (Std.isOfType(o, StringMap) || Std.isOfType(o, IntMap) || Std.isOfType(o, ObjectMap));
 	// return (o.exists != null && o.keyValueIterator != null);
-	function isAnon(test) return (Type.typeof(test) == ValueType.TObject);
+	]] ..
+		(isPre07 and 'function isAnon(test) return Reflect.isObject(test);'
+		or 'function isAnon(test) return (Type.typeof(test) == ValueType.TObject);')
+	.. [[
 	
+	var luaUtils = Type.resolveClass('psychlua.LuaUtils');
+	if (luaUtils == null) {
+		luaUtils = FunkinLua;
+	}
+	function getPropertyFromClass(classVar, variable) { // cuz 0.6.3 is mid
+		var cls = classOrEnum(classVar);
+		if (cls == null) return null;
+
+		var split = variable.split('.');
+		var result;
+		if (split.length > 1) {
+			var idk = luaUtils.getVarInArray(cls, split[0]);
+			for (i in 1...split.length - 1) {
+				idk = luaUtils.getVarInArray(idk, split[i]);
+			}
+			result = luaUtils.getVarInArray(idk, split[split.length - 1]);
+		} else {
+			result = Reflect.field(cls, variable);
+		}
+		if (isSpecial(result)) return '##SUPERSPECIAL';
+		return result;
+	}
 	function getPropertySafe(variable) {
 		var split = variable.split('.');
 		var main = split.shift();
@@ -153,7 +197,7 @@ runHaxeCode(
 	}
 	function objSplit(str) {
 		var split = str.split('.');
-		var finalSplit:Array = [];
+		var finalSplit = [];
 		for (v in split) {
 			var float = Std.parseFloat(v);
 			if (!Math.isNaN(float)) v = float;
@@ -163,7 +207,7 @@ runHaxeCode(
 	}
 	function objGet(split, classs, special) {
 		var fields = split;
-		var point = (classs == '' ? game : Type.resolveClass(classs));
+		var point = (classs == '' ? game : classOrEnum(classs));
 		if (split.length == 0)
 			return point;
 		
@@ -194,6 +238,7 @@ runHaxeCode(
 				}
 			} else {
 				var getfield = Reflect.getProperty(f, field);
+				if (getfield == null) getfield = Reflect.field(f, field);
 				if (getfield == null && !Reflect.fields(f).contains(field)) return '##INVALID';
 				f = getfield;
 			}
@@ -284,8 +329,8 @@ runHaxeCode(
 		if (obj != '##INVALID') {
 			var method = Reflect.field(obj, methodName);
 			if (Reflect.isFunction(method)) {
-				var truArgument:Array = [];
-				if (isAnon(arguments)) arguments = []; //empty array is passed as an anon structure, cause lua sucks
+				var truArgument = [];
+				if (!Std.isOfType(arguments, Array)) arguments = []; //empty array is passed as an anon structure, cause lua sucks
 				for (arg in arguments) truArgument.push(objGetFix(arg));
 				
 				var returned = Reflect.callMethod(obj, method, truArgument);
@@ -315,8 +360,10 @@ runHaxeCode(
 		return false;
 	}
 	function createInstance(tag, classs, args) {
-		if (args == '##NULL') args = [];
-		var instance = Type.createInstance(Type.resolveClass(classs), args);
+		if (!Std.isOfType(args, Array)) args = [];
+		var truArgs = [];
+		for (arg in args) truArgs.push(objGetFix(arg));
+		var instance = Type.createInstance(Type.resolveClass(classs), truArgs);
 		if (isFinal) {
 			game.variables.set(tag, instance);
 			return;
@@ -327,8 +374,8 @@ runHaxeCode(
 			case 'flixel.text.FlxText':
 				game.modchartTexts.set(tag, instance);
 			default:
-				game.variables.set(tag, instance);
 		}
+		game.variables.set(tag, instance);
 	}
 	function dsLength(ref) {
 		var obj = objGetFix(ref);
@@ -354,12 +401,59 @@ runHaxeCode(
 			return keys;
 		} return null;
 	}
+	createGlobalCallback('_refRunFunc', (name, args) -> {
+		if (!Std.isOfType(args, Array)) args = [];
+		var returned = this.executeFunction(name, args);
+		if (returned != null) {
+			if (useIris) {
+				return returned.returnValue;
+			} else {
+				if (returned.succeeded) return returned.returnValue;
+			}
+		} return null;
+	});
+	function test(a) return a;
 	
 	//hscript
 	var luas = ['0' => null]; //idk how to init maps without dumb bs
 	var hImports = ['0' => null];
-	hImports.remove('0');
+	luas.remove('0');
 	
+	]] .. (isPre07 and [[
+	var hscripts = luas.copy();
+
+	function initHS(id) {
+		id = id;
+		if (hscripts[id] != null) {
+			warn('HScript instance "' + id + '" is already initialized!');
+			return;
+		}
+		var hs = hscripts[id] = {
+			parser: new Parser(),
+			interp: new Interp(),
+			program: null,
+			exec: false,
+			vars: {}
+		};
+		prepareHS(hs);
+	}
+	function setHS(id, field, val) {
+		var hs = hscripts[id];
+		if (hs != null)
+			hs.interp.variables.set(field, objGetFix(val));
+	}
+	function destroyHS(id) hscripts.remove(id);
+	function importHS(classN, alias) {
+		var classR = classOrEnum(classN);
+		hImports[alias] = classR;
+		for (hscript in hscripts)
+			hscript.interp.variables.set(alias, classR);
+	}
+	function importOnHS(hs) {
+		for (alias in hImports.keys())
+			hs.interp.variables.set(alias, hImports[alias]);
+	}
+	]] or [[
 	function initHS(id) {
 		id = id;
 		if (luas[id] != null) {
@@ -384,16 +478,18 @@ runHaxeCode(
 		}
 	}
 	function importHS(classN, alias) {
-		var classR = Type.resolveClass(classN);
+		var classR = classOrEnum(classN);
 		hImports[alias] = classR;
 		for (lua in luas) {
 			var hs = lua.hscript;
 			hs.set(alias, classR);
 		}
 	}
-	function importOnHs(hs) for (alias in hImports.keys()) hs.set(alias, hImports[alias]);
-	
-	]] .. (useIris and [[
+	function importOnHS(hs) {
+		for (alias in hImports.keys())
+			hs.set(alias, hImports[alias]);
+	}
+	]]) .. (useIris and [[
 	//HSCRIPT IRIS
 	function getHS(id, field) {
 		var hs = getHInstance(id);
@@ -433,7 +529,7 @@ runHaxeCode(
 		importOnHS(iris);
 		iris.preset();
 	}
-	function executeHS(iris) return iris.interp.execute(iris.parser.parseString(iris.scriptStr));
+	function executeHS(iris) return iris.interp.execute(iris.parser.parseString(iris.scriptCode));
 	function runHS(id, code, vars, func, args) {
 		var hs = getHInstance(id);
 		if (hs == null) return;
@@ -441,10 +537,10 @@ runHaxeCode(
 		var truVars = {};
 		for (fi in Reflect.fields(vars))
 			Reflect.setField(truVars, fi, objGetFix(Reflect.field(vars, fi)));
-		var prevCode = hs.scriptStr;
+		var prevCode = hs.scriptCode;
 		code = code + "\nfunction getLocal_(v) { return this.interp.resolve(v); }\nfunction setLocal_(v, val) { this.interp.locals.get(v).r = val; }";
 		hs.varsToBring = truVars;
-		hs.scriptStr = code;
+		hs.scriptCode = code;
 		var result;
 		try {
 			if (StringTools.trim(func) == '') {
@@ -456,7 +552,7 @@ runHaxeCode(
 				if (!hs.exists(func)) throw 'Function "' + func + '" doesn\'t exist';
 				result = hs.executeFunction(func, args);
 			}
-			if (result != null) result = result.methodVal;
+			if (result != null && result.signature != null) result = result.returnValue;
 		} catch(e:Dynamic) {
 			warn('Hscript error from "' + id + '": ' + e);
 			result = null;
@@ -468,13 +564,125 @@ runHaxeCode(
 		var hs = luas[id].hscript;
 		executeHS(hs);
 	}
+	]] or (isPre07 and [[
+	//HSCRIPT
+	function getHS(id, field) {
+		var hs = hscripts[id];
+		if (hs == null) return;
+
+		var vars = hs.interp.variables;
+		var returned = null;
+
+		if (vars.exists(field)) {
+			returned = vars.get(field);
+		} else {
+			try {
+				returned = Reflect.callMethod(null, vars.get('getLocal_'), [field]);
+			} catch(e:Dynamic) {}
+		}
+
+		if (Reflect.isFunction(returned)) return '##METHOD';
+		if (isSpecial(returned)) return '##SPECIAL';
+		return returned;
+	}
+	function setHS(id, field, val) {
+		var hs = hscripts[id];
+		if (hs == null) return;
+
+		var vars = hs.interp.variables;
+
+		val = objGetFix(val);
+		if (vars.exists(field)) vars.set(field, val);
+		else Reflect.callMethod(null, vars.get('setLocal_'), [field, val]);
+	}
+	function prepareHS(hs) {
+		var vars = hs.interp.variables;
+		var imports = [
+			'flixel.FlxG',
+			'flixel.FlxMath',
+			'flixel.FlxCamera',
+			'flixel.FlxSprite',
+			'flixel.text.FlxText',
+			'flixel.util.FlxTimer',
+			'flixel.tweens.FlxEase',
+			'flixel.addons.display.FlxRuntimeShader',
+			'CustomSubstate',
+			'Achievements',
+			'StringTools',
+			'Character',
+			'Conductor',
+			'PlayState',
+			'Alphabet',
+			'Paths',
+			'Note',
+		];
+		for (cls in imports) {
+			var shortCls = cls.split('.').pop();
+			vars.set(shortCls, classOrEnum(cls));
+		}
+		vars.set('debugPrint', PlayState.instance.addTextToDebug);
+		vars.set('game', PlayState.instance);
+		vars.set('Reflect', Reflect);
+		vars.set('String', String);
+		vars.set('Float', Float);
+		vars.set('Array', Array);
+		vars.set('Type', Type);
+		vars.set('Bool', Bool);
+		vars.set('Int', Int);
+		vars.set('Std', Std);
+		vars.set('this', hs);
+		importOnHS(hs);
+	}
+	function runHS(id, code, vars, func, args) {
+		var hs = hscripts[id];
+		if (hs == null) return;
+
+		var interp = hs.interp;
+		var parser = hs.parser;
+		if (!Std.isOfType(args, Array)) args = [];
+		if (hs.vars != null)
+			for (fi in Reflect.fields(hs.vars))
+				interp.variables.set(fi, null);
+		if (vars != null) {
+			var fields = Reflect.fields(vars);
+			for (fi in fields) {
+				var val = objGetFix(Reflect.field(vars, fi));
+				interp.variables.set(fi, val);
+				Reflect.setField(hs.vars, fi, val);
+			}
+		}
+		var prevCode = interp.input;
+		code = code + "\nfunction getLocal_(v) { return this.interp.resolve(v); }\nfunction setLocal_(v, val) { this.interp.locals.get(v).r = val; }";
+		var onlyRun = (StringTools.trim(func) == '');
+		try {
+			if (onlyRun || !hs.exec) {
+				if (prevCode != code) {
+					hs.program = parser.parseString(code);
+				}
+				result = interp.execute(hs.program);
+				hs.exec = true;
+			}
+			if (!onlyRun) {
+				var truArgs = [];
+				for (arg in args) truArgs.push(objGetFix(arg));
+				var fun = interp.variables[func];
+				if (fun != null && Reflect.isFunction(fun)) {
+					Reflect.callMethod(null, fun, truArgs);
+				}
+			}
+		} catch (e:Dynamic) {
+			warn('Hscript error from "' + id + '": ' + e);
+			result = null;
+		}
+		return result;
+	}
 	]] or [[
 	//SSCRIPT
 	function getHS(id, field) {
 		var hs = getHInstance(id);
 		if (hs == null) return;
 		var returned;
-		
+
 		if (hs.exists(field)) {
 			returned = hs.get(field);
 		} else {
@@ -550,11 +758,118 @@ runHaxeCode(
 		hs.doString(hs.script);
 		executeHS(hs);
 	}
+	]]))
+function reference.isArray(tbl) return (#tbl > 0 and next(tbl, #tbl) == nil) end
+if isPre07 then
+	runHaxeCode('setVar("__TEMP", "");')
+	setProperty('variables.__TEMP', reference._baseCode)
+	local imports = {
+		HScript = '';
+		Interp = 'hscript';
+		Parser = 'hscript';
+		StringMap = 'haxe.ds';
+		ObjectMap = 'haxe.ds';
+		IntMap = 'haxe.ds';
+		MainMenuState = '';
+		FunkinLua = '';
+		Reflect = '';
+		String = '';
+		Float = '';
+		Array = '';
+		Type = '';
+		Bool = '';
+		Math = '';
+		Int = '';
+		Std = '';
+	}
+	for cls, pkg in pairs(imports) do addHaxeLibrary(cls, pkg) end
+	local function typeToString(t, doMap)
+		if type(t) == 'table' then
+			local isArray = reference.isArray(t)
+			local str = (isArray or doMap) and '[' or '{'
+			for k, v in (isArray and ipairs or pairs)(t) do
+				if not isArray then str = str .. (doMap and typeToString(k) or tostring(k)) .. (doMap and '=>' or ':') end
+				str = str .. typeToString(v) .. ','
+			end
+			if #str > 1 then str = str:sub(1, #str - 1) end
+			str = str .. ((isArray or doMap) and ']' or '}')
+			return str
+		elseif type(t) == 'string' then
+			return '"' .. t .. '"'
+		elseif t == nil then
+			return 'null'
+		else
+			return tostring(t)
+		end
+	end
+	runHaxeCode([[
+		var refHS = new HScript();
+		var parser = new Parser();
+		var imports = ]] .. typeToString(imports, true) .. [[;
+		for (cls in imports.keys()) {
+			var pkg = imports[cls];
+			if (pkg != '') pkg += '.';
+			refHS.interp.variables.set(cls, Type.resolveClass(pkg + cls));
+		}
+		refHS.interp.variables.set('createGlobalCallback', () -> {});
+		var expr = parser.parseString(getVar("__TEMP"));
+		refHS.interp.execute(expr);
+		setVar('##REFERENCE_HSCRIPT', refHS);
+		setVar('##REFERENCE_PARSER', parser);
 	]])
-)
+	function callMethodFromClass(cls, func, args)
+		return runHaxeCode([[
+			var cls = Type.resolveClass(']] .. cls .. [[');
+			var func = ']] .. func .. [[';
+			if (cls == null) {
+				game.addTextToDebug('No class exists with the name of "' + cls + '"', ]] .. printColors.error .. [[);
+				return null;
+			}
+			try {
+				var result = Reflect.callMethod(cls, func, ]] .. typeToString(args) .. [[);
+				for (type in [Int, Float, String, Bool, Array]) if (Std.isOfType(result, type)) return result;
+				if (result == null) return null;
+				return '';
+			} catch(e:Dynamic) {
+				game.addTextToDebug('Invalid function: ' + func, ]] .. printColors.error .. [[);
+				return null;
+			}
+		]])
+	end
+	reference._run = function(func, args)
+		args = args or {}
+		return runHaxeCode([[
+			var refHS = getVar('##REFERENCE_HSCRIPT');
+			var parser = getVar('##REFERENCE_PARSER');
+			var func = refHS.interp.variables[']] .. func .. [['];
+			if (func != null && Reflect.isFunction(func)) {
+				try {
+					return Reflect.callMethod(null, func, ]] .. typeToString(args) .. [[);
+				} catch(e:Dynamic) {
+					game.addTextToDebug('ERROR: ' + e, ]] .. printColors.error .. [[);
+				}
+			}
+			return null;
+		]])
+	end
+else
+	runHaxeCode(reference._baseCode)
+	reference._run = _refRunFunc --runHaxeFunction
+end
+
+--[[ local prevResume = coroutine.resume
+local prevYield = coroutine.yield
+coroutine.resume = function(...)
+	reference._run = _refRunFunc
+	return prevResume(...)
+end
+coroutine.yield = function(...)
+	reference._run = runHaxeFunction
+	return prevYield(...)
+end]]
 
 -- funny import
-import = function(class)
+function import(class)
 	if not reference.isValidClass(class) then
 		reference.warn('(import) ERROR: Class "' .. class .. '" doesn\'t exist!', 'error')
 		return nil
@@ -577,27 +892,49 @@ function reference.preset()
 	import 'flixel.FlxCamera'
 	import 'flixel.math.FlxMath'
 	import 'flixel.text.FlxText'
-	import 'backend.Paths'
-	import 'objects.Alphabet'
-	import 'objects.Character'
-	import 'backend.Conductor'
-	import 'backend.ClientPrefs'
-	import 'backend.PsychCamera'
-	import 'backend.Achievements'
-	import 'psychlua.ModchartSprite'
-	import 'states.PlayState'
-	import 'StringTools'
+	if isPre07 then
+		import 'Paths'
+		import 'Alphabet'
+		import 'Character'
+		import 'Conductor'
+		import 'PlayState'
+		import 'ClientPrefs'
+		import 'StringTools'
+	else
+		import 'backend.Paths'
+		import 'objects.Alphabet'
+		import 'objects.Character'
+		import 'backend.Conductor'
+		import 'backend.ClientPrefs'
+		import 'backend.PsychCamera'
+		import 'backend.Achievements'
+		import 'psychlua.ModchartSprite'
+		import 'states.PlayState'
+		import 'StringTools'
+		LuaSprite = ModchartSprite
+	end
 	game = reference ''
-	LuaSprite = ModchartSprite
+	remove = FlxG.state.remove
+	insert = FlxG.state.insert
+	add = FlxG.state.add
+	setVar = function(field, val)
+		game.variables[field] = val
+	end
+	getVar = function(field)
+		return game.variables[field]
+	end
+	debugPrint = function(text, col)
+		game.addTextToDebug(text, type(col) == 'number' and col or (type(col) == 'string' and tonumber(col:gsub('#', ''), 16) or 0xffffff))
+	end
 end
 function reference.hscript(code, vars, func, args)
 	local hs = reference._hsDisposable
 	hs.code = code; hs.vars = (type(vars) == 'table' and vars or {})
-	if func then return hs:run(tostring(func), args) end
+	if func then return hs:run(func, args) end
 	return hs:run()
 end
 function reference.luaObjectExists(obj)
-	return (runHaxeFunction('getLuaObject', {type(obj) == 'string' and obj or ''}) ~= '##INVALID')
+	return (reference._run('getLuaObject', {type(obj) == 'string' and obj or ''}) ~= '##INVALID')
 end
 function reference.objectExists(obj, class)
 	class = (type(class) == 'string' and class or '')
@@ -605,10 +942,9 @@ function reference.objectExists(obj, class)
 		reference.warn('(objectExists) ERROR: Class "' .. class .. '" doesn\'t exist!', 'error')
 		return nil
 	end
-	--debugPrint(obj .. '->'..tostring(reference.safeProp(obj, class)))
 	if not reference.safeProp(obj, class) then
 		local objT = obj:gsub('%[', '.'):gsub('[\'%]]', '')
-		local get = runHaxeFunction('objGet', {reference.splits(objT), class, false})
+		local get = reference._run('objGet', {reference.splits(objT), class, false})
 		return (get ~= '##INVALID')
 	end
 	return true
@@ -655,13 +991,13 @@ function reference.ref(obj, class, arguments)
 	return ref
 end
 function reference.destroy(ref)
-	runHaxeFunction('destroyRef', {reference.splits(ref._obj), ref._tag or '##NULL'})
+	reference._run('destroyRef', {reference.splits(ref._obj), ref._tag or '##NULL'})
 end
 function reference.destroyInstance(obj)
 	if reference.deprecatedWarnings then
 		reference.warn('destroyInstance is deprecated. Use reference:destroy() instead')
 	end
-	return runHaxeFunction('destroyObj', {obj})
+	return reference._run('destroyObj', {obj})
 end
 function reference.createInstance(tag, class, arguments)
 	if tag == nil or class == nil then
@@ -676,9 +1012,8 @@ function reference.createInstance(tag, class, arguments)
 		reference.warn('(createInstance) ERROR: Class "' .. tostring(class) .. '" doesn\'t exist!', 'error')
 		return nil
 	end
-	arguments = ((type(arguments) == 'table' and #arguments > 0) and arguments or '##NULL')
-	runHaxeFunction('createInstance', {tag, class, arguments})
-	--createInstance(tag, class, arguments)
+	arguments = arguments or ''
+	reference._run('createInstance', {tag, class, arguments})
 	local ref = reference.ref(tag)
 	rawset(ref, '_tag', tag)
 	return ref
@@ -686,7 +1021,7 @@ end
 
 -- lol
 function reference.cast(ref)
-	local get = reference.represent(runHaxeFunction('refCast', {ref}))
+	local get = reference.represent(reference._run('refCast', {ref}))
 	if type(get) == 'table' then -- well duh i guess
 		local finalTable = {}
 		if reference.isArray(get) then
@@ -706,7 +1041,7 @@ function reference.cast(ref)
 end
 function reference.reassign(ref, tag)
 	if tag == ref or type(tag) ~= 'string' then tag = reference.getFreeTag(ref._class) end
-	local success = runHaxeFunction('refAssign', {ref, tag})
+	local success = reference._run('refAssign', {ref, tag})
 	if success then
 		return reference.ref(tag)
 	else
@@ -718,7 +1053,7 @@ end
 -- indexing functions
 function reference.callMethod(self, arguments)
 	local ref = self
-	local call = runHaxeFunction('objCallMethod', {reference.splits(ref._obj), ref._class, reference.fixBigInts(arguments), false})
+	local call = reference._run('objCallMethod', {reference.splits(ref._obj), ref._class, reference.fixBigInts(arguments), false})
 	if call == '##SPECIAL' then
 		return reference.ref(ref._obj, ref._class, arguments)
 	else
@@ -740,7 +1075,7 @@ function reference.setField(self, field, val)
 		if ref._class == '' then get = setProperty(gfield, reference.fixBigInts(set))
 		else get = setPropertyFromClass(ref._class, gfield, reference.fixBigInts(set)) end
 	else
-		runHaxeFunction('objSetField', {reference.splits(gfield), ref._class, val == nil and '##NULL' or reference.fixBigInts(val)})
+		reference._run('objSetField', {reference.splits(gfield), ref._class, val == nil and '##NULL' or reference.fixBigInts(val)})
 	end
 end
 function reference.getField(self, field)
@@ -752,6 +1087,10 @@ function reference.getField(self, field)
 		gfield = gfield .. '.' .. field --(type(field) == 'number' and ('[' .. field .. ']') or ('.' .. field))
 	end
 	
+	if gfield:sub(1, 1) == '.' then
+		gfield = gfield:sub(2)
+	end
+	
 	local isSimple, propGot = reference.safeProp(gfield, ref._class)
 	if isSimple then
 		if propGot == '##SPECIAL' or propGot == gfield or type(propGot) == 'table' then
@@ -761,7 +1100,7 @@ function reference.getField(self, field)
 		end
 	else
 		gfield = gfield:gsub('%[', '.'):gsub('[\'%]]', '')
-		local get = runHaxeFunction('objGetField', {reference.splits(gfield), ref._class, false})
+		local get = reference._run('objGetField', {reference.splits(gfield), ref._class, false})
 		if get == '##INVALID' then return nil end
 		if get == '##SPECIAL' then
 			return reference.ref(gfield, ref._class)
@@ -772,7 +1111,7 @@ function reference.getField(self, field)
 end
 function reference.ipairs(ref)
 	if ref._obj == '' then warn('(ipairs) Can\'t iterate on this variable!') return ipairs({}) end
-	local length = runHaxeFunction('dsLength', {ref})
+	local length = reference._run('dsLength', {ref})
 	if length == nil then warn('(ipairs) Variable is not an array!') return ipairs({}) end
 	local t = {}
 	if stringStartsWith(length, '##ITER') then
@@ -785,7 +1124,7 @@ function reference.ipairs(ref)
 end
 function reference.pairs(ref)
 	if ref._obj == '' then reference.warn('(pairs) Can\'t iterate on this variable!') return pairs({}) end
-	local fields = runHaxeFunction('dsKeys', {ref})
+	local fields = reference._run('dsKeys', {ref})
 	if type(fields) ~= 'table' then reference.warn('(pairs) Variable is not a map or object!') return pairs({}) end
 	local t = {}
 	for _, k in ipairs(fields) do
@@ -812,7 +1151,7 @@ hscript._meta = {
 		if self.vars[var] then self.vars[var] = val end
 		self:set(var, val)
 	end;
-	__call = function() return self:run() end;
+	__call = function(self) return self:run() end;
 }
 local hscripts = 0
 
@@ -827,7 +1166,7 @@ function hscript.new(id, code, vars)
 	local code = code or ''
 	local vars = (type(vars) == 'table' and vars or {})
 	local new = {_started = false, _id = id and tostring(id) or ('hscript_' .. hscripts), code = code, vars = vars}
-	runHaxeFunction('initHS', {new._id})
+	reference._run('initHS', {new._id})
 	setmetatable(new, hscript._meta)
 	hscripts = hscripts + 1
 	if id then
@@ -845,7 +1184,7 @@ function hscript.import(class, alias)
 		reference.warn('(hscript.import) ERROR: Identifier "' .. alias .. '" is invalid for alias!', 'error')
 		return false
 	end
-	runHaxeFunction('importHS', {class, alias})
+	reference._run('importHS', {class, alias})
 	return true
 end
 function hscript:run(func, args)
@@ -854,13 +1193,13 @@ function hscript:run(func, args)
 		return nil
 	end]]
 	if type(self.vars) ~= 'table' then self.vars = {} end
-	return reference.represent(runHaxeFunction('runHS', {self._id, self.code, self.vars, type(func) == 'string' and func or '', type(args) == 'table' and args or {}}))
+	return reference.represent(reference._run('runHS', {self._id, self.code, self.vars, type(func) == 'string' and func or '', type(args) == 'table' and args or {}}))
 end
 function hscript.getHS(id) return (type(id) == 'table' and id or hscript.list[id]) end
 function hscript:get(var)
-	local self = hscript.getHS(self)
+	self = hscript.getHS(self)
 	if self.vars[var] then return self.vars[var] end
-	local returned = runHaxeFunction('getHS', {self._id, var})
+	local returned = reference._run('getHS', {self._id, var})
 	if returned == '##METHOD' then
 		return function(...)
 			local args = {...}
@@ -874,7 +1213,7 @@ end
 function hscript:set(var, val)
 	local self = hscript.getHS(self)
 	if self.vars[var] then self.vars[var] = val end
-	return runHaxeFunction('setHS', {self._id, var, val})
+	return reference._run('setHS', {self._id, var, val})
 end
 function hscript:reset()
 	local id = self._id
@@ -882,7 +1221,7 @@ function hscript:reset()
 	return hscript.new(id)
 end
 function hscript:destroy()
-	runHaxeFunction('destroyHS', {self._id})
+	reference._run('destroyHS', {self._id})
 	hscript.list[self._id] = nil
 	self = nil --gootbye
 end
@@ -890,10 +1229,11 @@ end
 reference._hsDisposable = hscript.new()
 
 -- "utils" and stuff
-function reference.isValidClass(class) return (class ~= nil and class ~= '' and reference.isValidIdentifier(class) and runHaxeFunction('isValidClass', {class})) end
+function reference.isValidClass(class)
+	return (class ~= nil and class ~= '' and reference.isValidIdentifier(class) and (callMethodFromClass('Type', 'resolveClass', {class})) or callMethodFromClass('Type', 'resolveEnum', {class})) end
 function reference.getProperty(var)
 	if reference.extreme then
-		return runHaxeFunction('getPropertySafe', {var})
+		return reference._run('getPropertySafe', {var})
 	else
 		local success, prop = pcall(getProperty, var)
 		if success then return prop
@@ -903,7 +1243,11 @@ function reference.getProperty(var)
 end
 function reference.getPropertyFromClass(class, var)
 	--lazy as shit
-	local success, prop = pcall(getPropertyFromClass, class, var)
+	if isPre07 then
+		return reference._run('getPropertyFromClass', {class, var})
+	else
+		local success, prop = pcall(getPropertyFromClass, class, var)
+	end
 	if success then return prop
 	else return '##SUPERSPECIAL' end
 end
@@ -959,10 +1303,9 @@ function reference.hasReferences(tbl)
 	end
 	return false
 end
-function reference.isArray(tbl) return (#tbl > 0 and next(tbl, #tbl) == nil) end
 function reference.getFreeTag(class)
-	local tag = 'REFERENCE_SPRITE' .. ref_insts .. (class == '' and '' or '_' .. reference.basicClassName(class))
-	ref_insts = ref_insts + 1
+	local tag = 'REFERENCE_SPRITE' .. reference._instincrement .. (class == '' and '' or '_' .. reference.basicClassName(class))
+	reference._instincrement = reference._instincrement + 1
 	return tag
 end
 
