@@ -1,5 +1,5 @@
 ## WEEKEND INTERFACE
-**TARGET VERSION:** 0.7.3<br>
+**TARGET VERSION:** 1.0.3<br>
 replicates the interface of the base game's weekend update in psych engine<br>
 see all todos inside the scripts<br>
 
