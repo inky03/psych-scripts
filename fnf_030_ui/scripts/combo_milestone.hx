@@ -36,8 +36,8 @@ function onSongStart() {
 	if (!enabled) return;
 	
 	currentSection = game.curSection;
-	section = getSection(currentSection);
-	nextSection = getSection(currentSection + 1);
+	section = PlayState.SONG.notes[currentSection];
+	nextSection = PlayState.SONG.notes[currentSection + 1];
 	return;
 }
 
@@ -103,6 +103,7 @@ function Milestone(x, y, combo) {
 		effectStuff.destroy();
 		effectStuff = null;
 	};
+	effectStuff.antialiasing = ClientPrefs.data.antialiasing;
 	effectStuff.setGraphicSize(effectStuff.width * .7);
 	effectStuff.cameras = [game.camHUD];
 	effectStuff.scrollFactor.set(.6, .6);
@@ -118,6 +119,7 @@ function setupCombo(x, y, combo) {
 		combo.cameras = [game.camHUD];
 		milestoneGroup.add(combo);
 		milestoneNumbers.push(combo);
+		combo.antialiasing = ClientPrefs.data.antialiasing;
 		combo.scrollFactor.set(effectStuff.scrollFactor.x, effectStuff.scrollFactor.y);
 		combo.animation.addByPrefix(num, num, 24, false);
 		combo.animation.play(num);

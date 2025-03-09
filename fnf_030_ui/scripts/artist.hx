@@ -4,6 +4,7 @@ var artist_KSsaru:String = 'Kawai Sprite (feat. Saruky)';
 var artist_fallback:Map = [
 	//to avoid this whole fuss,
 	//just add a tag "artist" to your song .json
+	'tutorial' => artist_KS,
 	'bopeebo' => artist_KS,			'fresh' => artist_KS,		'dadbattle' => artist_KS,
 	'spookeez' => artist_KS,		'south' => artist_KS,		'monster' => artist_basset,
 	'pico' => artist_KS,			'philly nice' => artist_KS,	'blammed' => artist_KS,
@@ -28,6 +29,7 @@ var artist_fallback:Map = [
 ];
 
 function onCreate() {
-	if (PlayState.SONG.artist == null) PlayState.SONG.artist = artist_fallback.get(PlayState.SONG.song.toLowerCase()); //if this is also null nothing changes :P
+	if (PlayState.SONG.artist == null)
+		PlayState.SONG.artist = artist_fallback.get(PlayState.SONG.song.toLowerCase()); //if this is also null nothing changes :P
 	return;
 }

@@ -3,9 +3,7 @@
 /*
 TODO
 - readd clipping for song header (idk how do that)
-- cleanup
-- seriously, cleanup
-- do it already stupid girl
+- it still needs cleanup :(
 - fix other stuff
 */
 import Std;
@@ -17,12 +15,12 @@ import flixel.effects.FlxFlicker;
 import flixel.sound.FlxSound;
 import flixel.util.FlxGradient;
 import flixel.addons.display.FlxBackdrop;
-import backend.CustomFadeTransition;
 import tjson.TJSON as JSON;
 import flixel.util.FlxSave;
 import backend.CoolUtil;
 import backend.MusicBeatState;
 import flixel.addons.transition.FlxTransitionableState;
+import backend.Mods;
 import backend.Language;
 import backend.WeekData;
 import backend.Highscore;
@@ -35,23 +33,24 @@ import flixel.group.FlxTypedSpriteGroup;
 
 var characters:String = 'AaBbCcDdEeFfGgHhiIJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz:1234567890';
 
-var grpStickers = null;
-var grpInfoTexts = null;
+var grpStickers;
+var grpInfoTexts;
+var diffText;
+var grpClear;
+var grpSongText;
 
 var subTimers:Array = []; //timers to cancel before destroying state
 var diffText:FlxSprite = null;
 var lastAlpha:FlxSprite = null;
-var heartsPerfect:FlxAnimate = null;
-var resultsBf = null;
-var resultsGf = null;
+var resultsSprites:Array<Dynamic> = [];
 var currentTally = -1;
 var tallies:Array = [];
 var shownResults:Bool = false;
 var inResults:Bool = false;
 var resultsActive:Bool = false;
 var resultsMusic = null;
-var introSound = null;
 var cam;
+
 var rankDelay:Map = [
 	'PERFECT' => {music: 95 / 24, flash: 129 / 24, bf: 95 / 24, hi: 140 / 24},
 	'EXCELLENT' => {music: 0, flash: 122 / 24, bf: 95 / 24, hi: 140 / 24}, //its 97/24 but it wouldnt sync ;(
@@ -59,6 +58,7 @@ var rankDelay:Map = [
 	'GOOD' => {music: 3 / 24, flash: 107 / 24, bf: 95 / 24, hi: 127 / 24},
 	'SHIT' => {music: 2 / 24, flash: 186 / 24, bf: 95 / 24, hi: 207 / 24},
 ];
+rankDelay['PERFECT_GOLD'] = rankDelay['PERFECT'];
 
 var stickerCam:FlxCamera;
 var stickerImages:Array = [];
@@ -87,8 +87,116 @@ function onCreatePost() {
 		}
 	}
 	precacheStickers();
+	
 	return;
 }
+
+function getPlayer(chara:String) {
+	try {
+		var charaSplit:Array<String> = chara.split('-');
+		while (charaSplit.length > 0) { // trim dashes until it finds a working match
+			var search:String = charaSplit.join('-');
+			if (FileSystem.exists(Paths.getPath('players/' + search + '.json')))
+				return search;
+			charaSplit.pop();
+		}
+	} catch (e:Dynamic) {
+		debugPrint('ERROR WHILE GETTING PLAYER: ' + e, 0xffff0000);
+	}
+	return 'bf';
+}
+function getPlayerFile(chara:String) {
+	try {
+		var path:String = Paths.getPath('players/' + chara + '.json');
+		if (FileSystem.exists(path))
+			return JSON.parse(File.getContent(path));
+	} catch (e:Dynamic) {
+		debugPrint('ERROR WHILE GETTING PLAYER FILE: ' + e, 0xffff0000);
+	}
+	return null;
+}
+function createResultsSprites(json:Dynamic, rank:String):Array<Dynamic> {
+	var characters:Array<Dynamic> = [];
+	
+	if (json.results != null) {
+		try {
+			var resultsSprites:Array<Dynamic> = Reflect.field(json.results, rank);
+			if (resultsSprites != null) {
+				for (sprite in resultsSprites) {
+					var character;
+					var assetPath = StringTools.replace(sprite.assetPath, 'shared:', '');
+					switch (sprite.renderType) {
+						case 'animateatlas':
+							character = new FlxAnimate(sprite.offsets[0], sprite.offsets[1]);
+							Paths.loadAnimateAtlas(character, assetPath);
+							if (sprite.scale != null)
+								character.scale.set(sprite.scale, sprite.scale);
+							
+							if (sprite.loopFrameLabel != null) {
+								var label:String = sprite.loopFrameLabel ?? '';
+								var labelData = character.anim.getFrameLabel(label);
+								if (labelData != null) {
+									var startInd:Int = labelData.index;
+									character.anim.onComplete.addOnce(() -> character.anim.play('', true, false, startInd));
+								}
+							} else if (sprite.looped || sprite.loopFrame != null) {
+								var fr:Int = sprite.loopFrame ?? 0;
+								character.anim.onComplete.add(() -> {
+									character.anim.curFrame = fr ?? 0;
+									character.anim.play();
+								});
+							} else {
+								character.anim.onComplete.add(() -> character.anim.pause());
+							}
+							
+							// fixes a bizarre issue caused by a weak point...
+							var sym = character.anim.curInstance.symbol;
+							var point = sym.transformationPoint;
+							character.origin = sym.transformationPoint = FlxBasePoint.get(point.x, point.y);
+						default:
+							character = new FlxSprite(sprite.offsets[0], sprite.offsets[1]);
+							character.frames = Paths.getSparrowAtlas(assetPath);
+							character.animation.addByPrefix('idle', '', 24, false);
+							
+							if (sprite.loopFrame != null) {
+								var fr:Int = sprite.loopFrame ?? 0;
+								character.animation.finishCallback = (_) -> character.animation.play('idle', true, false, fr);
+							}
+					}
+					
+					character.updateHitbox();
+					character.antialiasing = ClientPrefs.data.antialiasing;
+					characters.push({sprite: character, z: sprite.zIndex, delay: sprite.delay});
+				}
+			}
+			
+			characters.sort((a, b) -> Std.int(a.z) - Std.int(b.z));
+		} catch (e:Dynamic) {
+			debugPrint('ERROR WHILE CREATING RESULTS SPRITES: ' + e, 0xffff0000);
+		}
+	}
+	
+	return characters;
+}
+function spawnSprites(inst) {
+	for (dat in resultsSprites) {
+		function pop() {
+			dat.sprite.alpha = 1;
+			if (dat.sprite.anim != null) {
+				dat.sprite.anim.play('');
+			} else if (dat.sprite.animation != null) {
+				dat.sprite.animation.play('idle', true);
+			}
+		}
+		
+		if (dat.delay != null && dat.delay > 0) {
+			new FlxTimer().start(dat.delay, pop);
+		} else {
+			pop();
+		}
+	}
+}
+
 function precacheStickers() {
 	var stickersPath:String = Paths.modFolders('images/transitionSwag/');
 	if (FileSystem.exists(stickersPath)) {
@@ -169,18 +277,10 @@ function onEndSong() {
 	shownResults = true;
 	
 	if (game.gf != null) game.camFollow.setPosition(game.gf.getMidpoint().x, game.gf.getMidpoint().y);
-	var fade:FlxSprite = new FlxSprite(FlxG.width * .5, FlxG.height * .5).makeGraphic(1, 1, 0xff000000);
-	fade.scale.set(FlxG.width * 2, FlxG.height * 2);
-	fade.scrollFactor.set();
-	fade.alpha = 0;
-	game.playbackRate = 1;
-	game.add(fade);
-	FlxTween.tween(fade, {alpha: 1}, 1);
-	FlxTween.tween(game.camHUD, {alpha: 0}, 1);
-	new FlxTimer().start(1.5, () -> {
-		game.remove(fade);
+	game.camGame.fade(0xff000000, .6);
+	FlxTween.tween(game.camHUD, {alpha: 0}, .5);
+	new FlxTimer().start(.6, () -> {
 		//resultsScreen(game);
-		//game.paused = true;
 		CustomSubstate.openCustomSubstate('results');
 	});
 	return Function_Stop;
@@ -192,8 +292,8 @@ function stickers(inst) {
 	FlxG.cameras.add(stickerCam, false);
 	
 	var grpStickers = new FlxTypedSpriteGroup();
+	grpStickers.cameras = [stickerCam];
 	grpStickers.scrollFactor.set();
-	grpStickers.camera = stickerCam;
 	
 	var xPos:Float = -100;
 	var yPos:Float = -100;
@@ -239,7 +339,7 @@ function stickers(inst) {
 	}
 	inst.add(grpStickers);
 	var lastOne = grpStickers.members[grpStickers.members.length - 1];
-	if (lastOne != null) {
+	if (lastOne != null) { // original script by emi3
 		lastOne.updateHitbox();
 		lastOne.screenCenter();
 		lastOne.angle = 0;
@@ -296,52 +396,50 @@ function updateClearNums(inst, rating, target) {
 		}
 	}
 }
-function spawnBf(inst) {
-	if (resultsBf == null) return;
-	
-	resultsBf.alpha = 1;
-	if (resultsBf.anim == null) {
-		if (resultsBf.animation == null) return;
-		resultsBf.animation.play('start', true);
-		subTimers.push(new FlxTimer().start(.9166, () -> { //gf appear
-			if (resultsGf == null) return;
-			resultsGf.animation.play('start', true);
-			resultsGf.animation.finishCallback = () -> if (resultsGf != null) resultsGf.animation.play('loop');
-			resultsGf.alpha = 1;
-		}));
-	} else {
-		resultsBf.anim.play('', true);
-		resultsBf.anim.play('intro', true);
-		if (resultsGf != null && resultsGf.anim != null) {
-			subTimers.push(new FlxTimer().start(6 / 24, () -> { //gf appear
-				if (resultsGf == null) return;
-				resultsGf.anim.play('');
-				resultsGf.alpha = 1;
-			}));
-		}
-		if (heartsPerfect != null) {
-			inst.insert(inst.members.indexOf(resultsBf) + 1, heartsPerfect);
-			subTimers.push(new FlxTimer().start(106 / 24, () -> {
-				if (heartsPerfect == null) return;
-				heartsPerfect.anim.play('');
-				heartsPerfect.alpha = 1;
-			}));
-		}
+function badsCount() {
+	var i:Int = 0;
+	var count:Int = 0;
+	for (r in game.ratingsData) {
+		if (i >= 2)
+			count += r.hits;
+		i += 1;
 	}
+	return count;
 }
 function getRank(percent) {
-	if (percent >= 100) return 'PERFECT';
+	if (percent >= 100) {
+		if (badsCount() == 0)
+			return 'perfectGold';
+		return 'perfect';
+	}
+	if (percent >= 90) return 'excellent';
+	if (percent >= 80) return 'great';
+	if (percent >= 60) return 'good';
+	return 'loss';
+}
+function getRankB(percent) { // ...why?
+	if (percent >= 100) {
+		if (badsCount() == 0)
+			return 'PERFECT_GOLD';
+		return 'PERFECT';
+	}
 	if (percent >= 90) return 'EXCELLENT';
 	if (percent >= 80) return 'GREAT';
 	if (percent >= 60) return 'GOOD';
 	return 'SHIT';
 }
 function resultsScreen(inst) {
-	cam = game.camOther;//(inst == game ? game.camOther : FlxG.camera);
+	cam = new FlxCamera(0, 0, FlxG.width, FlxG.height);
+	cam.bgColor = 0;
+	FlxG.cameras.remove(game.camOther, false);
+	FlxG.cameras.add(cam, false);
+	FlxG.cameras.add(game.camOther, false);
+	// cam = game.camOther;
 	
 	inResults = true;
 	resultsActive = true;
 	game.playbackRate = 1;
+	game.paused = true;
 	cam.visible = true;
 	cam.alpha = 1;
 	for (grp in [game.noteGroup, game.uiGroup]) {
@@ -393,95 +491,11 @@ function resultsScreen(inst) {
 	var comboBreaks:Int = game.ratingsData[2].hits + game.ratingsData[3].hits + totalMisses;
 	
 	var clearStatus:Int = Math.floor(successHits / Math.max(successHits + comboBreaks, 1) * 100);
+	var rankBig:String = getRankB(clearStatus);
 	var rank:String = getRank(clearStatus);
 	
-	var bf = null;
-	var gf = null;
-	switch (rank) {
-		case 'PERFECT':
-			bf = new FlxAnimate(1342, 370);
-			Paths.loadAnimateAtlas(bf, 'resultScreen/results-bf/resultsPERFECT');
-			bf.anim.onComplete.add(() -> {
-				if (bf != null) {
-					bf.anim.curFrame = 137;
-					bf.anim.play();
-				}
-			});
-			heartsPerfect = new FlxAnimate(1342, 370);
-			Paths.loadAnimateAtlas(heartsPerfect, 'resultScreen/results-bf/resultsPERFECT/hearts');
-			heartsPerfect.anim.onComplete.add(() -> {
-				heartsPerfect.anim.curFrame = 43;
-				heartsPerfect.anim.play();
-			});
-			heartsPerfect.antialiasing = ClientPrefs.data.antialiasing;
-			heartsPerfect.scrollFactor.set();
-			heartsPerfect.alpha = .0001;
-		case 'EXCELLENT':
-			bf = new FlxAnimate(1329, 429);
-			Paths.loadAnimateAtlas(bf, 'resultScreen/results-bf/resultsEXCELLENT');
-			bf.anim.onComplete.add(() -> {
-				if (bf != null) {
-					bf.anim.curFrame = 28;
-					bf.anim.play();
-				}
-			});
-		case 'GREAT':
-			bf = new FlxAnimate(929, 363);
-			Paths.loadAnimateAtlas(bf, 'resultScreen/results-bf/resultsGREAT/bf');
-			bf.scale.set(.93, .93);
-			bf.anim.onComplete.add(() -> {
-				if (bf != null) {
-					bf.anim.curFrame = 15;
-					bf.anim.play();
-				}
-			});
-			
-			gf = new FlxAnimate(802, 331);
-			Paths.loadAnimateAtlas(gf, 'resultScreen/results-bf/resultsGREAT/gf');
-			gf.scale.set(.93, .93);
-			gf.anim.onComplete.add(() -> {
-				if (gf != null) {
-					gf.anim.curFrame = 9;
-					gf.anim.play();
-				}
-			});
-		case 'SHIT':
-			bf = new FlxAnimate(0, 20);
-			Paths.loadAnimateAtlas(bf, 'resultScreen/results-bf/resultsSHIT');
-			bf.anim.addBySymbol('intro', 'Intro', 24, false, 0, 0);
-			bf.anim.addBySymbol('loop', 'Loop Start', 24, false, 0, 0);
-			bf.anim.onComplete.add(() -> {
-				if (bf != null) {
-					bf.anim.curFrame = 149; //broken...........
-					bf.anim.play();
-				}
-			});
-		default:
-			bf = new FlxSprite(640, -200);
-			bf.frames = Paths.getSparrowAtlas('resultScreen/resultBoyfriendGOOD');
-			bf.animation.addByPrefix('start', 'Boyfriend Good Anim', 24, false);
-			bf.animation.addByIndices('loop', 'Boyfriend Good Anim', [70, 71, 72, 73], '', 24, true);
-			bf.antialiasing = ClientPrefs.data.antialiasing;
-			bf.animation.finishCallback = () -> if (bf != null) bf.animation.play('loop');
-			
-			gf = new FlxSprite(625, 325);
-			gf.frames = Paths.getSparrowAtlas('resultScreen/resultGirlfriendGOOD');
-			gf.animation.addByPrefix('start', 'Girlfriend Good Anim', 24, false);
-			gf.animation.addByIndices('loop', 'Girlfriend Good Anim', [46, 47, 48, 49, 50, 51], '', 24, true);
-			gf.animation.play('start');
-	}
-	if (bf != null) {
-		bf.scrollFactor.set();
-		bf.antialiasing = ClientPrefs.data.antialiasing;
-		bf.alpha = .0001;
-		resultsBf = bf;
-	}
-	if (gf != null) {
-		gf.scrollFactor.set();
-		gf.antialiasing = ClientPrefs.data.antialiasing;
-		gf.alpha = .0001;
-		resultsGf = gf;
-	}
+	var player:Dynamic = getPlayerFile(getPlayer(game.boyfriend.curCharacter));
+	resultsSprites = createResultsSprites(player, rank);
 	
 	var resultsTitle:FlxSprite = new FlxSprite(0, -10);
 	resultsTitle.antialiasing = ClientPrefs.data.antialiasing;
@@ -506,35 +520,42 @@ function resultsScreen(inst) {
 	//var b:FlxBitmapText = new FlxBitmapText(null, null, null, FlxBitmapFont.fromMonospace(Paths.image('resultScreen/alphabet'), characters, new FlxBasePoint(49, 62)));
 	//b.text = 'ABCDefgh';
 	
-	bg.camera = cam;
+	bg.cameras = [cam];
 	bg.scrollFactor.set();
 	inst.add(bg);
 	inst.add(bgFlash);
 	bgFlash.alpha = 0.0001;
-	bgFlash.camera = cam;
+	bgFlash.cameras = [cam];
 	
+	var storyWeek:String = WeekData.getCurrentWeek();
 	var artist:String = PlayState.SONG.artist == null ? PlayState.SONG.song : getPhrase('song_meta', '{1} by {2}', [PlayState.SONG.song, PlayState.SONG.artist]);
-	var songText:String = PlayState.isStoryMode ? WeekData.getCurrentWeek().storyName.toUpperCase() : artist;
+	var songText:String = PlayState.isStoryMode ? getPhrase('storyname_' + storyWeek.fileName, storyWeek.storyName, []).toUpperCase() : artist;
 	var rm = Math.sin(-4.4 / 180 * Math.PI);
 	
+	grpClear = new FlxTypedSpriteGroup();
+	grpSongText = new FlxTypedSpriteGroup();
 	grpInfoTexts = new FlxTypedSpriteGroup();
-	grpInfoTexts.setPosition(555, 187 - 75);//87
+	grpInfoTexts.setPosition(555, 187 - 87);
 	grpInfoTexts.alpha = .0001;
 	grpInfoTexts.scrollFactor.set();
-	grpInfoTexts.camera = cam;
+	grpInfoTexts.cameras = [cam];
 	
 	var difficulty:String = Difficulty.list[PlayState.storyDifficulty];
 	var diffImg = Paths.image('resultScreen/diff_' + difficulty.toLowerCase());
 	if (diffImg == null) diffImg = Paths.image('resultScreen/diff_unknown');
-	var diffText:FlxSprite = new FlxSprite().loadGraphic(diffImg);
+	diffText = new FlxSprite().loadGraphic(diffImg);
 	diffText.antialiasing = ClientPrefs.data.antialiasing;
 	diffText.y -= diffText.height;
-	grpInfoTexts.add(diffText);
-	createAlphabet(grpInfoTexts, diffText.width + 135 + 22, -65 + (diffText.width + 135) * rm, songText);
-	var infoClearPercent = createRatingNums(grpInfoTexts, diffText.width + 22 + 73, -72 + (diffText.width + 50) * rm + 10, clearStatus);
+	createAlphabet(grpSongText, diffText.width + 135 + 22, -65 + (diffText.width + 135) * rm, songText);
+	var infoClearPercent = createRatingNums(grpClear, diffText.width + 22 + 73, -72 + (diffText.width + 50) * rm + 10, clearStatus);
 	infoClearPercent.visible = false;
 	//bgTop.scrollFactor.set();
 	//inst.add(bgTop);*/
+	grpInfoTexts.add(diffText);
+	grpInfoTexts.add(grpClear);
+	grpInfoTexts.add(grpSongText);
+	for (obj in [diffText, grpClear, grpSongText])
+		obj.origin.y = obj.y;
 	
 	var bgCam = new FlxCamera();
 	bgCam.bgColor = 0;
@@ -543,12 +564,11 @@ function resultsScreen(inst) {
 	
 	scrollHA = new FlxTypedSpriteGroup();
 	scrollHA.scrollFactor.set();
-	scrollHA.camera = cam;
+	scrollHA.cameras = [cam];
 	scrollHB = new FlxTypedSpriteGroup();
 	scrollHB.scrollFactor.set();
-	scrollHB.camera = cam;
-	var rrank = (rank == 'SHIT' ? 'LOSS' : rank);
-	var rankImage = Paths.image('resultScreen/rankText/rankScroll' + rrank);
+	scrollHB.cameras = [cam];
+	var rankImage = Paths.image('resultScreen/rankText/rankScroll' + rank.toUpperCase());
 	if (rankImage != null) {
 		var ang:Float = -3.666;
 		var ww = rankImage.width;
@@ -556,33 +576,43 @@ function resultsScreen(inst) {
 		scrollRad = rad;
 		scrollWidth = ww;
 		for (yy in 0...10) {
-			for (xx in 0...(Math.ceil(FlxG.width / ww) + 2)) {
+			for (xx in 0 ... (Math.ceil(FlxG.width / ww) + 2)) {
 				var xa:Float = (xx - 1) * ww - 2 * yy + (yy % 2 == 0 ? 0 : ww);
 				var ya:Float = 67.4 * yy;
-				var scroll = new FlxSprite(Math.cos(rad) * xa - Math.sin(rad) * ya, 135 + Math.sin(rad) * xa + Math.cos(rad) * ya).loadGraphic(rankImage);
+				var scroll = new FlxSprite(Math.cos(rad) * xa - Math.sin(rad) * ya, 165 + Math.sin(rad) * xa + Math.cos(rad) * ya).loadGraphic(rankImage);
 				scroll.y += -scroll.height + 55;
+				scroll.origin.set(0, 0);
 				scroll.angle = ang;
 				if (yy % 2 == 0) scrollHA.add(scroll);
 				else scrollHB.add(scroll);
 			}
 		}
 	}
-	var rankImageB = Paths.image('resultScreen/rankText/rankText' + rrank);
+	var rankImageB = Paths.image('resultScreen/rankText/rankText' + rank.toUpperCase());
 	scrollV = new FlxBackdrop(rankImageB, 0x10, 0, 30);
 	scrollV.x = FlxG.width - 45;
 	scrollV.scrollFactor.set();
-	scrollV.camera = cam;
+	scrollV.cameras = [cam];
 	
 	clearImage = new FlxSprite(900 - 75, 400 - 75).loadGraphic(Paths.image('resultScreen/clearPercent/clearPercentText'));
 	clearImage.scrollFactor.set();
-	clearImage.camera = cam;
+	clearImage.cameras = [cam];
 	clearnumGrp = new FlxTypedSpriteGroup(965 - 75, 475 - 75);
 	clearnumGrp.scrollFactor.set();
-	clearnumGrp.camera = cam;
+	clearnumGrp.cameras = [cam];
 	
-	for (i in [resultsGf, resultsBf, heartsPerfect, grpInfoTexts, soundSystem, resultsBar, cats, score, hiscore, resultsTitle]) {
+	var resultsHi = grpInfoTexts;
+	for (dat in resultsSprites) {
+		var i = dat.sprite;
+		i.scrollFactor.set();
+		i.cameras = [cam];
+		i.alpha = .0001;
+		resultsHi = i;
+		inst.add(i);
+	}
+	for (i in [grpInfoTexts, soundSystem, resultsBar, cats, score, hiscore, resultsTitle]) {
 		if (i == null) continue;
-		i.camera = cam;
+		i.cameras = [cam];
 		i.scrollFactor.set();
 		i.alpha = .0001;
 		inst.add(i);
@@ -611,21 +641,32 @@ function resultsScreen(inst) {
 		num.animation.play(n == '' ? 'disabled' : Std.string(n));
 		num.alpha = .0001;
 		num.scrollFactor.set();
-		num.camera = cam;
+		num.cameras = [cam];
 		scoreNums.push(num);
 		inst.add(num);
 		i += 1;
 	}
 	
 	FlxG.sound.music.stop();
-	resultsMusic = Paths.music('results' + rank); //todo: fix bum ass volume sound on NORMAL music
-	if (resultsMusic == null || resultsMusic.length < 1000) resultsMusic = Paths.music('resultsNORMAL');
-	var resultsIntro = Paths.music('results' + rank + '-intro');
+	var resultsIntro;
+	var resultsMusic;
+	if (player?.results?.music != null) {
+		var musicDat = player.results.music;
+		var musicRank = Reflect.field(musicDat, rankBig);
+		if (musicRank != null) {
+			resultsMusic = Paths.music(musicRank);
+			resultsIntro = Paths.music(musicRank + '-intro');
+		} else {
+			resultsMusic = Paths.music('resultsNORMAL');
+		}
+	}
+	if (resultsIntro != null && resultsIntro.length < 1000)
+		resultsIntro = null;
 	
-	var delayData = rankDelay.get(rank);
+	var delayData = rankDelay.get(rankBig);
 	if (delayData == null) delayData = {music: 3.5, bf: 3.5, flash: 3.5, hi: 3.5};
 	subTimers.push(new FlxTimer().start(delayData.bf, () -> { //bf delay
-		spawnBf(inst);
+		spawnSprites(inst);
 		infoClearPercent.visible = true;
 		var i:Int = 0;
 		for (item in infoClearPercent.members) {
@@ -633,7 +674,8 @@ function resultsScreen(inst) {
 			i += 1;
 		}
 		subTimers.push(new FlxTimer().start(.4, () -> {
-			for (item in infoClearPercent.members) item.setColorTransform();
+			for (item in infoClearPercent.members)
+				item.setColorTransform();
 		}));
 		subTimers.push(new FlxTimer().start(2.5, moveAlphabets));
 	}));
@@ -642,21 +684,23 @@ function resultsScreen(inst) {
 		FlxTween.tween(bgFlash, {alpha: 0}, 5 / 24);
 		inst.insert(inst.members.indexOf(bg) + 1, scrollHA);
 		inst.insert(inst.members.indexOf(bg) + 1, scrollHB);
-		inst.insert(inst.members.indexOf(resultsBf) + 1, scrollV);
+		inst.insert(inst.members.indexOf(resultsHi) + 1, scrollV);
 		FlxFlicker.flicker(scrollV, 2 / 24 * 3, 2 / 24, true);
 		
 		var speed:Float = 7;
 		scrollHA.velocity.set(Math.cos(scrollRad) * speed, Math.sin(scrollRad) * speed);
 		scrollHB.velocity.set(-scrollHA.velocity.x, -scrollHA.velocity.y);
-		subTimers.push(new FlxTimer().start(30 / 24, () -> { scrollV.velocity.y = -80; }));
+		subTimers.push(new FlxTimer().start(30 / 24, () -> scrollV.velocity.y = -80));
 	}));
 	subTimers.push(new FlxTimer().start(delayData.music, () -> {
-		if (resultsIntro == null) FlxG.sound.playMusic(resultsMusic);
-		else {
-			introSound = new FlxSound().loadEmbedded(resultsIntro);
-			introSound.play();
-			introSound.onComplete = () -> { FlxG.sound.playMusic(resultsMusic); };
-			FlxG.sound.list.add(introSound);
+		if (resultsIntro != null) {
+			FlxG.sound.playMusic(resultsIntro);
+			FlxG.sound.music.onComplete = () -> {
+				FlxG.sound.playMusic(resultsMusic);
+				FlxG.sound.music.onComplete = null;
+			}
+		} else {
+			FlxG.sound.playMusic(resultsMusic);
 		}
 	}));
 	if (newHi) {
@@ -699,12 +743,12 @@ function resultsScreen(inst) {
 						digit = (digit + 1) % 9;
 						num.animation.play(Std.string(digit), true);
 						if (t.loopsLeft <= 0) {
-							FlxTween.num(0, finalDigit, 23 / 24, {ease: FlxEase.quadOut, onComplete: () -> {
+							subTimers.push(FlxTween.num(0, finalDigit, 23 / 24, {ease: FlxEase.quadOut, onComplete: () -> {
 								num.animation.play(Std.string(finalDigit), true);
 							}}, (n) -> {
 								num.animation.play(Std.string(Math.round(n)));
 								num.animation.finish();
-							});
+							}));
 						}
 						if (start) start = false;
 						else num.animation.finish();
@@ -716,16 +760,16 @@ function resultsScreen(inst) {
 	}));
 	subTimers.push(new FlxTimer().start(37 / 24, () -> { //bf appear, tally
 		currentTally = 0;
-		for (i in [clearnumGrp, clearImage]) inst.insert(inst.members.indexOf(resultsBf), i);
+		for (i in [clearnumGrp, clearImage]) inst.insert(inst.members.indexOf(resultsHi), i);
 		bgFlash.alpha = 1;
-		FlxTween.tween(bgFlash, {alpha: 0}, 5 / 24);
-		FlxTween.num(0, clearStatus, 58 / 24, {ease: FlxEase.quartOut}, (n) -> {
+		subTimers.push(FlxTween.tween(bgFlash, {alpha: 0}, 5 / 24));
+		subTimers.push(FlxTween.num(0, clearStatus, 58 / 24, {ease: FlxEase.quartOut}, (n) -> {
 			updateClearNums(inst, n, clearStatus);
-		});
+		}));
 		
 		subTimers.push(new FlxTimer().start(.4, () -> {
 			grpInfoTexts.alpha = 1;
-			FlxTween.tween(grpInfoTexts, {y: grpInfoTexts.y + 75}, .5, {ease: FlxEase.quartOut});
+			tweenTexts();
 		}));
 	}));
 	
@@ -751,20 +795,15 @@ function exitSong() {
 	return true;
 }
 function resultsClose(inst) {
-	CustomSubstate.closeCustomSubstate();
-	
-	if (introSound != null) {
-		introSound.fadeOut(.5, 0);
-		introSound.onComplete = null;
-	}
-	grpInfoTexts = null;
-	resultsBf = null;
-	resultsGf = null;
 	while (subTimers.length > 0) {
 		var t = subTimers.shift();
 		t.cancel();
 		t.destroy();
 	}
+	CustomSubstate.closeCustomSubstate();
+	
+	grpInfoTexts = null;
+	resultsSprites = [];
 	
 	resultsActive = false;
 	game.paused = true;
@@ -776,10 +815,10 @@ function resultsClose(inst) {
 	
 	var fade:FlxSprite = new FlxSprite(FlxG.width * .5, FlxG.height * .5).makeGraphic(1, 1, 0xff000000);
 	fade.scale.set(FlxG.width * 2, FlxG.height * 2);
-	fade.camera = stickerCam;
+	fade.cameras = [stickerCam];
 	fade.scrollFactor.set();
 	fade.alpha = 0;
-	inst.add(fade);
+	game.add(fade);
 	FlxTween.tween(fade, {alpha: 1}, .25, {ease: FlxEase.expoOut});
 	FlxTween.tween(Main.fpsVar, {alpha: 0}, .25, {ease: FlxEase.sineOut, startDelay: .5});
 	new FlxTimer().start(.75, () -> {
@@ -794,8 +833,18 @@ function onDestroy() {
 	}
 	return;
 }
+function tweenTexts() {
+	grpInfoTexts.acceleration.set(0, 0);
+	grpInfoTexts.velocity.set(0, 0);
+	var i:Int = 0;
+	for (obj in [diffText, grpClear, grpSongText]) {
+		FlxTween.tween(obj, {y: obj.origin.y + 75}, .5, {ease: FlxEase.quartOut, startDelay: i * .05});
+		i += 1;
+	}
+}
 function resultsUpdate(inst, e) {
 	if (!resultsActive) return;
+	
 	game.health = 2;
 	if (scrollHA.x > Math.cos(scrollRad) * scrollWidth) {
 		scrollHA.x -= Math.cos(scrollRad) * scrollWidth;
@@ -806,25 +855,30 @@ function resultsUpdate(inst, e) {
 		scrollHB.y += Math.sin(scrollRad) * scrollWidth;
 	}
 	if (grpInfoTexts.x < -grpInfoTexts.width) {
-		grpInfoTexts.setPosition(555, 187 - 75);
-		grpInfoTexts.acceleration.set(0, 0);
-		grpInfoTexts.velocity.set(0, 0);
-		FlxTween.tween(grpInfoTexts, {y: grpInfoTexts.y + 75}, .5, {ease: FlxEase.quartOut});
+		grpInfoTexts.setPosition(555, 187 - 87);
+		for (obj in [diffText, grpClear, grpSongText])
+			obj.y -= 75;
+		tweenTexts();
 		subTimers.push(new FlxTimer().start(1.5, moveAlphabets));
 	}
-	var close:Bool = inst.controls.ACCEPT || inst.controls.BACK || (FlxG.android != null && FlxG.android.justReleased.BACK);
+	var close:Bool = game.controls.ACCEPT || game.controls.BACK || (FlxG.android != null && FlxG.android.justReleased.BACK);
 	if (close) {
-		stickers(inst);
+		stickers(game);
 		resultsActive = false;
 	}
 	tallyDumb(currentTally, e);
 }
-function onCustomSubstateUpdate(substate, e)
-	if (substate == 'results') resultsUpdate(game, e);
+function onCustomSubstateUpdate(substate, e) {
+	if (substate == 'results') {
+		if (FlxG.keys.justPressed.F5)
+			FlxG.resetState();
+		resultsUpdate(FlxG.state.subState, e);
+	}
+}
 function createTally(inst, x, y, color, score) {
 	var grp = new FlxTypedSpriteGroup(x, y);
-	grp.camera = cam;
 	grp.scrollFactor.set();
+	grp.cameras = [cam];
 	grp.color = color;
 	inst.add(grp);
 	tallies.push({first: false, tally: 0, score: Math.floor(score), wait: 0, group: grp});
@@ -864,6 +918,19 @@ function createAlphabet(group, x, y, text) {
 	var angle:Int = -4.4;
 	var angleRad:Float = angle / 180 * Math.PI;
 	for (c in letters) {
+		var isUpper:Bool = (c == c.toUpperCase());
+		
+		c = switch (c.toLowerCase()) {
+			case 'á', 'à', 'â', 'ä': 'a';
+			case 'é', 'è', 'ê', 'ë': 'e';
+			case 'í', 'ì', 'î', 'ï': 'i';
+			case 'ó', 'ò', 'ô', 'ö': 'o';
+			case 'ú', 'ù', 'û', 'ü': 'u';
+			default: c;
+		}
+		if (isUpper)
+			c = c.toUpperCase();
+		
 		var char = characters.indexOf(c);
 		if (char >= 0) {
 			var letter:FlxSprite = new FlxSprite(x + i * Math.cos(angleRad) * dist, y + i * Math.sin(angleRad) * dist).loadGraphic(Paths.image('resultScreen/alphabet'), true, 392 / 8, 496 / 8);
@@ -910,9 +977,9 @@ function moveAlphabets() { //move alphabet and stuff
 	grpInfoTexts.velocity.y = Math.abs(100 * rm);
 }
 function getPhrase(key, def, values) { //note: move to util
-	if (StringTools.startsWith(MainMenuState.psychEngineVersion, '1.1'))
+	if (Language != null) {
 		return Language.getPhrase(key, def, values);
-	else {
+	} else {
 		var i:Int = 1;
 		for (val in values) {
 			def = StringTools.replace(def, '{' + i + '}', val);

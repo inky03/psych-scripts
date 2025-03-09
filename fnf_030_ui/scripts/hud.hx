@@ -1,4 +1,5 @@
 import Main;
+import backend.Language;
 import openfl.text.TextFormat;
 import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
@@ -16,6 +17,7 @@ var skipTween:Bool = false;
 var comboGroup:FlxTypedSpriteGroup<FlxSprite>;
 
 var oldTitle = 'Friday Night Funkin\': Psych Engine';
+var showRam:Bool = false;
 var psychFps = null;
 var memPeak = 0;
 
@@ -24,6 +26,7 @@ var fakeTrayAlpha = 0;
 var trayLerpY = 0;
 var trayAlphaTarget = 0;
 var oldVolume:Float = 0;
+var soundTray = FlxG.game.soundTray;
 
 //constants
 var c_PIXELARTSCALE:Float = 6;
@@ -38,10 +41,9 @@ function onCreate() {
 	
 	doMiss = getSetting('missbutlikeactually', false);
 	missRating = getSetting('miss', false);
-	var showRam:Bool = getSetting('showram', false);
+	showRam = getSetting('showram', false);
 	
 	for (snd in ['Volup', 'Voldown', 'VolMAX']) Paths.sound('soundtray/' + snd);
-	var soundTray = FlxG.game.soundTray;
 	if (soundTray != null && soundTray.y != null) { //yea man!??
 		fakeTrayY = soundTray.y;
 		fakeTrayAlpha = soundTray.alpha;
@@ -53,50 +55,58 @@ function onCreate() {
 	FlxG.stage.window.title = 'Friday Night Funkin\'';
 	
 	FlxTransitionableState.skipNextTransOut = true;
-	psychFps = Main.fpsVar.updateText; //custom fps display
 	Main.fpsVar.defaultTextFormat = new TextFormat('_sans', 12, 0xffffff, false, false, false, '', '', 'left', 0, 0, 0, -4); //lol!
-	Main.fpsVar.updateText = () -> {
-        memPeak = Math.max(memPeak, Main.fpsVar.memoryMegas);
-        Main.fpsVar.text = 'FPS: ' + Main.fpsVar.currentFPS + (showRam ? ('\nRAM: ' + FlxStringUtil.formatBytes(Main.fpsVar.memoryMegas).toLowerCase() + ' / ' + FlxStringUtil.formatBytes(memPeak).toLowerCase()) : '');
-		
-		//cant modify soundTray.show (or i couldnt get it to work), so override here :(
-		if (soundTray != null && soundTray.active && soundTray.visible) {
-			if (soundTray._timer > 0) {
-				trayAlphaTarget = 1;
-				trayLerpY = 10;
-			} else {
-				trayLerpY = -soundTray.height - 10;
-				trayAlphaTarget = 0;
-			}
-			fakeTrayY = FlxMath.lerp(fakeTrayY, trayLerpY, .1);
-			fakeTrayAlpha = FlxMath.lerp(fakeTrayAlpha, trayAlphaTarget, .25);
-			soundTray.y = fakeTrayY;
-			soundTray.alpha = fakeTrayAlpha;
-			var globalVolume:Int = (FlxG.sound.muted ? 0 : Math.round(FlxG.sound.volume * 10));
-			var i = 1;
-			for (bar in soundTray._bars) {
-				bar.visible = (i == globalVolume); //so the bars dont stack up lmao!
-				i += 1;
-			}
-			//check volume change
-			if (FlxG.sound.volume != oldVolume || (FlxG.keys.anyJustPressed(FlxG.sound.volumeUpKeys) && FlxG.sound.volume >= 1)) {
-				if (oldVolume > FlxG.sound.volume) FlxG.sound.play(Paths.sound('soundtray/Voldown'));
-				else FlxG.sound.play(Paths.sound('soundtray/Vol' + (FlxG.sound.volume < 1 ? 'up' : 'MAX')));
-				oldVolume = FlxG.sound.volume;
-			}
-		}
-    }
 	game.updateIconsScale = () -> {};
+	
+	psychFps = Main.fpsVar.updateText; // custom fps display
+	Main.fpsVar.updateText = updateFPS;
+	
+	FlxG.game.addEventListener('enterFrame', updateSoundTray); // soundtray override
+}
+
+function updateFPS() {
+	memPeak = Math.max(memPeak, Main.fpsVar.memoryMegas);
+	Main.fpsVar.text = 'FPS: ' + Main.fpsVar.currentFPS + (showRam ? ('\nRAM: ' + FlxStringUtil.formatBytes(Main.fpsVar.memoryMegas).toLowerCase() + ' / ' + FlxStringUtil.formatBytes(memPeak).toLowerCase()) : '');
+}
+function updateSoundTray() {
+	//cant modify soundTray.show (or i couldnt get it to work), so override here :(
+	if (soundTray != null && soundTray.active && soundTray.visible) {
+		if (soundTray._timer > 0) {
+			trayAlphaTarget = 1;
+			trayLerpY = 10;
+		} else {
+			trayLerpY = -soundTray.height - 10;
+			trayAlphaTarget = 0;
+		}
+		fakeTrayY = FlxMath.lerp(fakeTrayY, trayLerpY, .1 * FlxG.elapsed * 60);
+		fakeTrayAlpha = FlxMath.lerp(fakeTrayAlpha, trayAlphaTarget, .25 * FlxG.elapsed * 60);
+		soundTray.y = fakeTrayY;
+		soundTray.alpha = fakeTrayAlpha;
+		var globalVolume:Int = (FlxG.sound.muted ? 0 : Math.round(FlxG.sound.volume * 10));
+		var i = 1;
+		for (bar in soundTray._bars) {
+			bar.visible = (i == globalVolume); //so the bars dont stack up lmao!
+			i += 1;
+		}
+		//check volume change
+		if (FlxG.sound.volume != oldVolume || (FlxG.keys.anyJustPressed(FlxG.sound.volumeUpKeys) && FlxG.sound.volume >= 1)) {
+			if (oldVolume > FlxG.sound.volume) FlxG.sound.play(Paths.sound('soundtray/Voldown'));
+			else FlxG.sound.play(Paths.sound('soundtray/Vol' + (FlxG.sound.volume < 1 ? 'up' : 'MAX')));
+			oldVolume = FlxG.sound.volume;
+		}
+	}
 }
 
 function onDestroy() {
-	FlxG.stage.window.title = oldTitle;
-	Main.fpsVar.defaultTextFormat = new TextFormat('_sans', 14, 0xffffff, false, false, false, '', '', 'left', 0, 0, 0, 0);
 	Main.fpsVar.updateText = psychFps;
+	FlxG.stage.window.title = oldTitle;
+	FlxG.game.removeEventListener('enterFrame', updateSoundTray);
+	Main.fpsVar.defaultTextFormat = new TextFormat('_sans', 14, 0xffffff, false, false, false, '', '', 'left', 0, 0, 0, 0);
 	return Function_Continue;
 }
 
-function onUpdateScore() game.scoreTxt.text = (game.cpuControlled ? 'Bot Play Enabled' : 'Score:' + game.songScore);
+function onUpdateScore()
+	game.scoreTxt.text = (game.cpuControlled ? getPhrase('botplay_vanilla', 'Bot Play Enabled', []) : getPhrase('score_text_vanilla', 'Score: {1}', [game.songScore]));
 
 function onCreatePost() {
 	comboGroup.cameras = [game.camHUD];
@@ -205,6 +215,8 @@ function coolLerp(base, target, ratio) { //funkin mathutil
 }
 function onUpdatePost(e) {
 	game.camZooming = false;
+	if (game.cameraTwn?._properties?.zoom != null)
+		game.defaultCamZoom = game.cameraTwn._properties.zoom;
 	
 	lerpHealth = FlxMath.lerp(lerpHealth, game.health, .15); //WHY IS EVERYTHING TIED TO FPS
 	game.healthBar.percent = lerpHealth * 50;
@@ -335,4 +347,17 @@ function displayCombo(combo) {
 		daLoop += 1;
 	}
 	return combo;
+}
+
+function getPhrase(key, def, values) { //note: move to util
+	if (Language != null) {
+		return Language.getPhrase(key, def, values);
+	} else {
+		var i:Int = 1;
+		for (val in values) {
+			def = StringTools.replace(def, '{' + i + '}', val);
+			i += 1;
+		}
+		return def;
+	}
 }

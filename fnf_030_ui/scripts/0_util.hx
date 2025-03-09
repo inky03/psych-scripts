@@ -10,7 +10,6 @@ should have failsafes for versions pre 0.7.2 (no mod settings), not inside packe
 */
 var warned:Bool = false;
 var version = StringTools.trim(MainMenuState.psychEngineVersion);
-version = Std.parseFloat(version.substring(2, version.length));
 var scriptMod = null;
 if (this.modFolder == '' || this.modFolder == null) { //workaround for that one mobile user
 	scriptMod = this.toString(); //since modFolder does NOT WORK FOR SOME DAMN REASON
@@ -30,7 +29,7 @@ function getDefaultSetting(save, def) {
 function getScrSetting(save, def) {
 	/*version < 7.2 cause mod settings were added in 0.7.2
 	version >= 0.1 cause 1.0 returns 0 lol!*/
-	if (version < 7.2 && version > 0) { //is unsupported
+	if (version < '0.7.2') { //is unsupported
 		return getDefaultSetting(save, def);
 	} else if (scriptMod != null) {
 		if (FlxG.save.data.modSettings == null) return getDefaultSetting(save, def); //What

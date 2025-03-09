@@ -1,4 +1,8 @@
+storyname_tutorial: "TEMPO DE ENSINO"
+
 song_meta: "{1} por {2}"
+score_text_vanilla: "Pontos: {1}"
+botplay_vanilla: "Bot Play Ligado"
 
 setting_debug_display: "Display Debug"
 description_debug_display: "Exibi a RAM embaixo do contador de FPS"

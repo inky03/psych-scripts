@@ -127,6 +127,8 @@ function getSkinPostfix(key) {
 function onSpawnNote(note) {
 	if (note.isSustainNote) {
 		var strum = getStrum(note.mustPress, note.noteData);
+		if (strum == null) return;
+		
 		note.multAlpha = 1;
 		if (PlayState.isPixelStage) note.scale.x = 6 * .7;
 		if (StringTools.endsWith(note.animation.name, 'end')) note.scale.y = note.scale.x;
