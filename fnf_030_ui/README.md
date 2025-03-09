@@ -3,13 +3,16 @@
 replicates the interface of the base game's weekend update in psych engine<br>
 see all todos inside the scripts<br>
 
+gamebanana upload [here](https://gamebanana.com/mods/580468)
+
 ### features
 - combo milestones
 - scoring system (PBOT1)
 - results screen
+  - [NEW] supports CUSTOM PLAYER JSONS (bf and pico by default)
 - hold cover effects (rgb notes supported)
-- note shadows on bad/miss (and combo break)
-- modified fps and [NEW] soundtray displays
+- note shadows on bad note hits & combo breaks
+- modified fps and soundtray displays
 - a shoddy chart/event converter,<br>
 and more
 
