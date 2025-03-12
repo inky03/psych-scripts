@@ -1,4 +1,3 @@
-import objects.PixelSplashShader;
 import flixel.group.FlxTypedSpriteGroup;
 //using StringTools;
 
@@ -97,9 +96,9 @@ function onCreatePost() {
 			}
 		}
 		
-		var rgb = new PixelSplashShader();
-		rgb.uBlocksize.value = [pixel / superScale.x, pixel / superScale.y];
-		rgb.mult.value = [1];
+		var rgb = game.createRuntimeShader('rgbFix');
+		rgb.data.blocksize.value = [pixel / superScale.x, pixel / superScale.y];
+		rgb.data.mult.value = [1];
 		cover.shader = rgb;
 		rgbs.push(rgb);
 		holdCovers.push({cover: cover, strum: strum, hitTime: -1});
@@ -152,10 +151,10 @@ function popCover(note, strum, cover, rgb) {
 	cover.visible = true;
 	if (rgb != null) {
 		if (note.rgbShader.enabled) {
-			rgb.r.value = note.shader.r.value;
-			rgb.g.value = note.shader.g.value; //blue color channel is not used
+			rgb.data.r.value = note.shader.r.value;
+			rgb.data.g.value = note.shader.g.value; //blue color channel is not used
 		} else {
-			rgb.r.value = rgb.g.value = [1, 1, 1];
+			rgb.data.r.value = rgb.g.value = [1, 1, 1];
 		}
 	}
 }
@@ -249,7 +248,7 @@ function opponentNoteHitPre(note) {
 }
 function opponentNoteHit(note) {
 	var strum = getStrum(false, note.noteData);
-	strum.resetAnim = (note.isSustainNote ? 0 : Conductor.crochet * .001);
+	strum.resetAnim = (note.isSustainNote ? 0 : Conductor.crochet * .001 * .5);
 	return;
 }
 function makeGhostNote(note) {
@@ -281,12 +280,12 @@ function goodNoteHit(note) {
 	if (!note.isSustainNote && strum != null) {
 		playHits.push({strum: strum, hold: note.sustainLength > 0});
 		if (note.tail.length == 0 && !game.cpuControlled) {
-			new FlxTimer().start(Conductor.crochet * .001, () -> {
+			new FlxTimer().start(Conductor.crochet * .001 * .5, () -> {
 				if (strum.animation.name == 'hit')
 					strum.playAnim('pressed', true);
 			});
 		}
-		strum.resetAnim = (note.tail.length > 0 || (game.cpuControlled && note.tail.length == 0) ? (Conductor.crochet * .001) : 0);
+		strum.resetAnim = (note.tail.length > 0 || (game.cpuControlled && note.tail.length == 0) ? (Conductor.crochet * .001 * .5) : 0);
 	}
 	coverLogic(note, StringTools.endsWith(note.animation.name, 'end'));
 	return;

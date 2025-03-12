@@ -12,10 +12,12 @@ var warned:Bool = false;
 var version = StringTools.trim(MainMenuState.psychEngineVersion);
 var scriptMod = null;
 if (this.modFolder == '' || this.modFolder == null) { //workaround for that one mobile user
-	scriptMod = this.toString(); //since modFolder does NOT WORK FOR SOME DAMN REASON
+	scriptMod = this.filePath; //since modFolder does NOT WORK FOR SOME DAMN REASON
 	scriptMod = scriptMod.substring(scriptMod.indexOf('mods/') + 5, scriptMod.length);
 	scriptMod = scriptMod.substring(0, scriptMod.indexOf('/scripts/'));
-} else scriptMod = this.modFolder; //we find it directly from the script path
+} else {
+	scriptMod = this.modFolder; //we find it directly from the script path
+}
 
 function getDefaultSetting(save, def) {
 	var settings = Paths.modsJson('settings');

@@ -1,3 +1,5 @@
+import objects.NoteSplash;
+
 var strumShades:Map = [];
 var shadeNotes:Bool = false;
 var adaptive:Bool = false;
@@ -12,16 +14,28 @@ function onCountdownStarted() {
 	if (!adaptive) return Function_Continue;
 	
 	var tex = game.playerStrums.members[0].texture + '_n';
-	if (Paths.image(tex) != null && !PlayState.isPixelStage) { 
-		shadeNotes = true;
+	var changeTexture:Bool = false;
+	if (Paths.image(tex) != null) {
+		changeTexture = true; 
+		shadeNotes = !PlayState.isPixelStage;
 		for (strum in game.strumLineNotes) {
-			setStrumShade(strum);
+			if (shadeNotes)
+				setStrumShade(strum);
+			var scal = strum.scale.x;
 			strum.texture = tex;
+			strum.scale.set(scal, scal);
+			strum.updateHitbox();
 		}
 	}
 	for (note in game.unspawnNotes) {
+		if (changeTexture) {
+			var prevEnabled:Bool = note.rgbShader.enabled;
+			note.texture = tex;
+			note.rgbShader.enabled = prevEnabled;
+		}
 		if (note.mustPress && note.noteSplashData.r == -1) {
 			if (!note.rgbShader.enabled) continue;
+			
 			var colors = splashColors(int2rgb(note.rgbShader.r));
 			note.noteSplashData.r = colors.fill;
 			note.noteSplashData.b = colors.ring;
@@ -29,8 +43,32 @@ function onCountdownStarted() {
 	}
 }
 
+function splashApplyShader(splash) {
+	if (splash.rgbShader.enabled && splash.shader == splash.rgbShader.shader) {
+		var rgb = game.createRuntimeShader('rgbFix');
+		splash.shader = rgb;
+	}
+}
+function splashUpdateShader(splash) {
+	splashApplyShader(splash);
+	
+	try {
+		var shd = splash.shader;
+		if (shd.setFloat == null) return;
+		shd.data.r.value = splash.rgbShader.shader.r.value;
+		shd.data.g.value = splash.rgbShader.shader.g.value;
+		shd.data.b.value = splash.rgbShader.shader.b.value;
+		shd.data.mult.value = splash.rgbShader.shader.mult.value;
+		shd.data.blocksize.value = splash.rgbShader.shader.uBlocksize.value;
+	} catch (e:Dynamic) {}
+}
 function onUpdatePost(elapsed:Float) {
 	if (!adaptive || !shadeNotes) return Function_Continue;
+	
+	for (splash in game.grpNoteSplashes) {
+		if (splash != null)
+			splashUpdateShader(splash);
+	}
 	for (strum in game.strumLineNotes) {
 		var mod:String = (strum.animation.curAnim.name == 'pressed' ? 'miss' : 'hit');
 		if (strum.useRGBShader && strum.rgbShader.enabled) {
@@ -58,12 +96,12 @@ function splashColors(col) {
 	
 	rgb = col; //ring
 	hsv = rgb2hsv(rgb);
-	rgb.red = rgb.red * .65;
-	rgb.green = rgb.green * Math.max(.75 - rgb.blue * .2, 0);
-	rgb.blue = Math.min((rgb.blue + 80) * hsv.brightness / 255, 255);
+	rgb.red = rgb.red * .9;
+	rgb.green *= Math.max(.95 - rgb.blue / 255 * .3 - rgb.red / 255 * .3, 0);
+	rgb.blue = Math.min((rgb.blue * 2 + 80 - rgb.red * .3) * hsv.brightness / 255, 255);
 	hsv = rgb2hsv(rgb);
-	hsv.saturation = Math.min(1 - Math.pow(1 - hsv.saturation * 1.4, 2), 1) * Math.min(hsv.brightness / 255 / .125, 1);
-	hsv.brightness = hsv.brightness * .75 + 255 * .25;
+	hsv.saturation = Math.min(hsv.saturation * 1.2 * Math.min(hsv.brightness / 32, 1), 1);
+	hsv.brightness = hsv.brightness * .875 + 32;
 	var ring = rgbfloat(hsv2rgb(hsv));
 	return {fill: rgb2int(fill), ring: rgb2int(ring)};
 }

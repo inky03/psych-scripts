@@ -2,5 +2,5 @@ WEEKEND INTERFACE
 The Funkin' Crew Inc::funkin::Assets are property of The Funkin' Crew Inc::https://github.com/FunkinCrew::31b0d1
 emi3::puta::+ Main Programmer\n+ Additional Art::https://x.com/superinky_::705f7a
 ChillaxoRelaxo::chillax::+ Contributions and Fixes::https://x.com/Chillaxorelaxo::8e35b5
-Chloe::chloe::+ Portuguese Translation Assistant::https://fllics.carrd.co/::ad73ee
+Claire::fllics::+ Portuguese Translation Assistant::https://fllics.carrd.co/::ad73ee
 SquidBoy84::ika::+ Portuguese Translation Assistant::https://x.com/SquidBoy84::329c7a

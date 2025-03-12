@@ -1,9 +1,13 @@
+import Std;
 import Main;
 import backend.Language;
+import backend.Difficulty;
+import substates.PauseSubState;
 import openfl.text.TextFormat;
 import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
 import flixel.addons.transition.FlxTransitionableState;
+import flixel.math.FlxBasePoint;
 import flixel.util.FlxStringUtil;
 import flixel.group.FlxTypedSpriteGroup;
 
@@ -15,6 +19,7 @@ var doMiss:Bool = false;
 var missRating:Bool = false;
 var skipTween:Bool = false;
 var comboGroup:FlxTypedSpriteGroup<FlxSprite>;
+var vwooshGroup:FlxTypedSpriteGroup<FlxSprite>;
 
 var oldTitle = 'Friday Night Funkin\': Psych Engine';
 var showRam:Bool = false;
@@ -36,6 +41,7 @@ function getSetting(setting, def) {
 	return setting;
 }
 function onCreate() {
+	vwooshGroup = new FlxTypedSpriteGroup();
 	comboGroup = new FlxTypedSpriteGroup();
 	game.add(comboGroup);
 	
@@ -61,7 +67,186 @@ function onCreate() {
 	psychFps = Main.fpsVar.updateText; // custom fps display
 	Main.fpsVar.updateText = updateFPS;
 	
+	game.subStateOpened.add(hookPauseMenu);
+	game.subStateClosed.add(hookPauseExit);
 	FlxG.game.addEventListener('enterFrame', updateSoundTray); // soundtray override
+	
+	var last:String = PlayState.storyPlaylist.pop();
+	if (last == '_FRESTART') {
+		game.skipArrowStartTween = true;
+	} else if (last != null) {
+		PlayState.storyPlaylist.push(last);
+	}
+}
+function addPauseNotes() {
+	vwooshGroup.cameras = noteGroup.cameras;
+	
+	game.insert(game.members.indexOf(game.noteGroup) + 1, vwooshGroup);
+	for (plug in FlxG.plugins.list) {
+		if (Std.isOfType(plug, Note)) {
+			vwooshGroup.add(plug);
+			FlxTween.tween(plug, {y: plug.y + FlxG.height * (ClientPrefs.data.downScroll ? -1 : 1)}, .5, {ease: FlxEase.expoIn, onComplete: (_) -> {
+				plug.kill();
+				vwooshGroup.remove(plug, true);
+				plug.destroy();
+			}});
+		}
+	}
+	FlxG.plugins.removeAllByType(Note);
+}
+function savePauseNotes() {
+	while (game.notes.members.length > 0) {
+		var note:Note = game.notes.members.shift();
+		if (note != null) {
+			var prevScale:FlxPoint = FlxBasePoint.get(note.scale.x, note.scale.y);
+			var prevOffset:FlxPoint = FlxBasePoint.get(note.offset.x, note.offset.y);
+			note.reloadNote();
+			note.scale.set(prevScale.x, prevScale.y);
+			note.offset.set(prevOffset.x, prevOffset.y);
+			FlxG.plugins.addPlugin(note);
+		}
+	}
+}
+
+var artistText:FlxText;
+var artistTween:FlxTimer;
+var songRestarting:Bool = false;
+function hookPauseMenu(subState:FlxSubState) {
+	if (!Std.isOfType(subState, PauseSubState)) return;
+	
+	try {
+		var artistString:String = 'Artist: ' + (PlayState.SONG.artist ?? 'Unknown');
+		artistText = new FlxText(20, 0, 0, artistString, 32);
+		artistText.setFormat(Paths.font('vcr.ttf'), 32);
+		artistText.x = FlxG.width - artistText.width - 20;
+		artistText.scrollFactor.set();
+		artistText.updateHitbox();
+		
+		var i:Int = 0;
+		var diffString:String = Difficulty.getString();
+		for (member in subState.members) {
+			if (!Std.isOfType(member, FlxText)) continue;
+			
+			var recalc:Bool = true;
+			switch (member.text) {
+				case Language.getPhrase('Charting Mode').toUpperCase():
+					continue;
+				case PlayState.SONG.song:
+					subState.insert(subState.members.indexOf(member) + 1, artistText);
+				case diffString.toUpperCase():
+					member.text = 'Difficulty: ' + diffString;
+				default:
+					recalcX = false;
+			}
+			if (recalc)
+				member.x = FlxG.width - member.width - 20;
+			member.y = 15 + 32 * i;
+			
+			i += 1;
+			member.alpha = 1;
+			FlxTween.cancelTweensOf(member);
+			FlxTween.tween(member, {y: member.y + 5}, 1.8, {ease: FlxEase.quartOut, startDelay: i * .1});
+		}
+		
+		subState.menuItemsOG.insert(subState.menuItemsOG.indexOf('Restart Song'), 'FRESTART');
+		subState.menuItemsOG.remove('Restart Song');
+		
+		subState.menuItemsOG.remove('Toggle Practice Mode');
+		if (PlayState.chartingMode || !game.practiceMode)
+			subState.menuItemsOG.insert(3, 'Toggle Practice Mode');
+		subState.deleteSkipTimeText();
+		subState.regenMenu();
+		for (item in subState.grpMenuShit) {
+			if (item.text == 'Toggle Practice Mode')
+				item.text = 'Enable Practice Mode';
+			if (item.text == 'FRESTART')
+				item.text = 'Restart Song';
+		}
+		
+		pauseCharterTween();
+		
+		FlxG.signals.postUpdate.add(hookPauseUpdate);
+	} catch (e:Dynamic) {
+		debugPrint('FAILED TO HOOK: ' + e, 0xffff0000);
+	}
+}
+function pauseCharterTween(?_) {
+	var charterString:String = 'Charter: ' + (PlayState.SONG.charter ?? 'Unknown');
+	artistTween = FlxTween.tween(artistText, {alpha: 0}, .75, {ease: FlxEase.quartOut, startDelay: 15, onComplete: (_) -> {
+		artistText.text = charterString;
+		artistText.x = FlxG.width - artistText.width - 20;
+		FlxTween.tween(artistText, {alpha: 1}, .75, {ease: FlxEase.quartOut, onComplete: pauseArtistTween});
+	}});
+}
+function pauseArtistTween(?_) {
+	var artistString:String = 'Artist: ' + (PlayState.SONG.artist ?? 'Unknown');
+	artistTween = FlxTween.tween(artistText, {alpha: 0}, .75, {ease: FlxEase.quartOut, startDelay: 15, onComplete: (_) -> {
+		artistText.text = artistString;
+		artistText.x = FlxG.width - artistText.width - 20;
+		FlxTween.tween(artistText, {alpha: 1}, .75, {ease: FlxEase.quartOut, onComplete: pauseCharterTween});
+	}});
+}
+function hookPauseUpdate() {
+	var subState:FlxSubState = game.subState;
+	if (!Std.isOfType(subState, PauseSubState)) return;
+	
+	try {
+		if (controls.ACCEPT && (subState.cantUnpause <= 0 || !controls.controllerMode)) {
+			switch (subState.menuItems[subState.curSelected]) {
+				case 'FRESTART':
+					restartSong();
+				case 'Toggle Practice Mode':
+					if (!PlayState.chartingMode) {
+						if (!game.startingSong)
+							subState.menuItemsOG.insert(3, 'Skip Time');
+						subState.menuItemsOG.remove('Toggle Practice Mode');
+						subState.regenMenu();
+					}
+			}
+			for (item in subState.grpMenuShit) {
+				if (item.text == 'Toggle Practice Mode')
+					item.text = 'Enable Practice Mode';
+				if (item.text == 'FRESTART')
+					item.text = 'Restart Song';
+			}
+		}
+		for (item in subState.grpMenuShit) {
+			item.distancePerItem.x = 25;
+			item.distancePerItem.y = 157.5;
+			
+			item.isMenuItem = false;
+			var lerpVal:Float = Math.exp(-FlxG.elapsed * 20);
+			if (item.changeX) item.x = FlxMath.lerp((item.targetY * item.distancePerItem.x) + item.startPosition.x, item.x, lerpVal);
+			if (item.changeY) item.y = FlxMath.lerp((item.targetY * item.distancePerItem.y) + item.startPosition.y + 30, item.y, lerpVal);
+		}
+	} catch (e:Dynamic) {
+		debugPrint('FAILED TO HOOK: ' + e, 0xffff0000);
+	}
+}
+function hookPauseExit(subState:FlxSubState) {
+	if (!Std.isOfType(subState, PauseSubState)) return;
+	
+	try {
+		if (artistTween != null) {
+			artistTween.cancel();
+			artistTween.destroy();
+			artistTween = null;
+		}
+		artistText = null;
+		FlxG.signals.postUpdate.remove(hookPauseUpdate);
+	} catch (e:Dynamic) {
+		debugPrint('FAILED TO HOOK: ' + e, 0xffff0000);
+	}
+}
+
+function restartSong() {
+	songRestarting = true;
+	PlayState.prevCamFollow = camFollow;
+	PlayState.storyPlaylist.push('_FRESTART');
+	camFollow.setPosition(FlxG.camera.scroll.x + FlxG.width * .5, FlxG.camera.scroll.y + FlxG.height * .5);
+	
+	FlxTransitionableState.skipNextTransIn = true;
+	PauseSubState.restartSong();
 }
 
 function updateFPS() {
@@ -98,6 +283,9 @@ function updateSoundTray() {
 }
 
 function onDestroy() {
+	if (songRestarting)
+		savePauseNotes();
+	
 	Main.fpsVar.updateText = psychFps;
 	FlxG.stage.window.title = oldTitle;
 	FlxG.game.removeEventListener('enterFrame', updateSoundTray);
@@ -109,6 +297,7 @@ function onUpdateScore()
 	game.scoreTxt.text = (game.cpuControlled ? getPhrase('botplay_vanilla', 'Bot Play Enabled', []) : getPhrase('score_text_vanilla', 'Score: {1}', [game.songScore]));
 
 function onCreatePost() {
+	addPauseNotes();
 	comboGroup.cameras = [game.camHUD];
 	
 	game.healthBar.y = FlxG.height * (ClientPrefs.data.downScroll ? .1 : .9);
@@ -119,6 +308,7 @@ function onCreatePost() {
 	game.scoreTxt.fieldWidth = 0;
 	game.scoreTxt.setPosition(game.healthBar.x + game.healthBar.width - 190, game.healthBar.y + 30);
 	game.scoreTxt.setFormat(Paths.font('vcr.ttf'), 16, -1, 'right', FlxTextBorderStyle.OUTLINE, 0xff000000);
+	game.scoreTxt.antialiasing = ClientPrefs.data.antialiasing;
 	game.botplayTxt.kill();
 	
 	game.healthBar.y = FlxG.height * (ClientPrefs.data.downScroll ? .1 : .9);
@@ -133,9 +323,10 @@ function onCreatePost() {
 	game.timeTxt.y = game.timeBar.y + (game.timeBar.height - game.timeTxt.height) * .5;
 	game.healthBar.barOffset.set(4, 4);
 	
-	var relayer:Array = [game.scoreTxt, game.healthBar, game.iconP2, game.iconP1];
-	for (item in relayer) game.uiGroup.remove(item);
-	for (item in relayer) game.uiGroup.add(item); //:p
+	game.uiGroup.remove(game.scoreTxt, true);
+	game.uiGroup.insert(game.uiGroup.members.indexOf(game.healthBar), game.scoreTxt);
+	game.uiGroup.remove(game.iconP1, true);
+	game.uiGroup.insert(game.uiGroup.members.indexOf(game.iconP2) + 1, game.iconP1);
 	
 	return Function_Continue;
 }
@@ -187,10 +378,18 @@ function boom() {
 }
 function onCountdownTick(_, t) {
 	if (t % 4 == 0) boom();
+	
 	game.iconP1.setGraphicSize(game.iconP1.width * 1.2);
 	game.iconP2.setGraphicSize(game.iconP2.width * 1.2);
 	game.iconP1.updateHitbox();
 	game.iconP2.updateHitbox();
+	
+	for (spr in [game.countdownReady, game.countdownSet, game.countdownGo]) {
+		if (spr == null) continue;
+		
+		game.remove(spr, true);
+		game.insert(game.members.indexOf(game.noteGroup) + 1, spr);
+	}
 }
 function onSectionHit() boom();
 function onUpdate(e) {
@@ -218,17 +417,20 @@ function onUpdatePost(e) {
 	if (game.cameraTwn?._properties?.zoom != null)
 		game.defaultCamZoom = game.cameraTwn._properties.zoom;
 	
-	lerpHealth = FlxMath.lerp(lerpHealth, game.health, .15); //WHY IS EVERYTHING TIED TO FPS
+	var lerp:Float = .15 * Math.exp(-e / 60);
+	lerpHealth = FlxMath.lerp(lerpHealth, Math.min(game.health, 2), lerp);
 	game.healthBar.percent = lerpHealth * 50;
 	
-	game.iconP1.setGraphicSize(coolLerp(game.iconP1.width, 150, .15));
-	game.iconP2.setGraphicSize(coolLerp(game.iconP2.width, 150, .15));
+	game.iconP1.setGraphicSize(coolLerp(game.iconP1.width, 150, lerp));
+	game.iconP2.setGraphicSize(coolLerp(game.iconP2.width, 150, lerp));
 	game.iconP1.updateHitbox();
 	game.iconP2.updateHitbox();
 	game.updateIconsPosition();
 	
-	if (forceHBColors && (game.healthBar.leftBar.color != 0xff0000 || game.healthBar.rightBar.color != 0x66ff33)) game.healthBar.setColors(0xff0000, 0x66ff33);
-	//uhh!
+	game.healthBar.percent = Math.round(game.healthBar.percent);
+	
+	if (forceHBColors && (game.healthBar.leftBar.color != 0xff0000 || game.healthBar.rightBar.color != 0x66ff33))
+		game.healthBar.setColors(0xff0000, 0x66ff33);
 	return;
 }
 function onEvent(event, v1, v2) {

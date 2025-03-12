@@ -7,6 +7,7 @@ TODO
 - fix other stuff
 */
 import Std;
+import Type;
 import Main;
 import Reflect;
 import sys.io.File;
@@ -17,23 +18,24 @@ import flixel.util.FlxGradient;
 import flixel.addons.display.FlxBackdrop;
 import tjson.TJSON as JSON;
 import flixel.util.FlxSave;
-import backend.CoolUtil;
-import backend.MusicBeatState;
 import flixel.addons.transition.FlxTransitionableState;
 import backend.Mods;
 import backend.Language;
+import backend.CoolUtil;
 import backend.WeekData;
 import backend.Highscore;
 import backend.Difficulty;
+import backend.MusicBeatState;
 import states.MainMenuState;
 import states.FreeplayState;
 import states.StoryMenuState;
 import flixel.math.FlxBasePoint;
 import flixel.group.FlxTypedSpriteGroup;
 
+var DiscordClient = Type.resolveClass('backend.DiscordClient'); // lol??
+
 var characters:String = 'AaBbCcDdEeFfGgHhiIJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz:1234567890';
 
-var grpStickers;
 var grpInfoTexts;
 var diffText;
 var grpClear;
@@ -60,22 +62,17 @@ var rankDelay:Map = [
 ];
 rankDelay['PERFECT_GOLD'] = rankDelay['PERFECT'];
 
-var stickerCam:FlxCamera;
-var stickerImages:Array = [];
-var stickerSounds:Array = [];
-
 var maxCombo:Int = 0;
 var totalHits:Int = 0;
 var totalNotes:Int = 0;
 var campaignScore:Int = 0;
 
 function onCreatePost() {
-	//for (note in game.unspawnNotes) if (note.mustPress && !note.isSustainNote) totalNotes ++;
-	for (asset in ['resultBoyfriendGOOD', 'results', 'soundSystem', 'score-digital-numbers', 'tallieNumber',
-	'resultGirlfriendGOOD', 'scorePopin', 'ratingsPopin', 'highscoreNew', 'clearPercent/clearPercentNumberSmall'])
+	for (asset in ['results', 'soundSystem', 'score-digital-numbers', 'tallieNumber',
+		'scorePopin', 'ratingsPopin', 'highscoreNew', 'clearPercent/clearPercentNumberSmall'])
 		Paths.getSparrowAtlas('resultScreen/' + asset);
 	for (asset in ['alphabet']) Paths.image('resultScreen/' + asset);
-	Paths.music('resultsNORMAL');
+	
 	//get rid of story mode save when starting a week, in case of unexpected song exit
 	if (PlayState.isStoryMode) {
 		var weekSongs = WeekData.getCurrentWeek().songs;
@@ -86,7 +83,6 @@ function onCreatePost() {
 			save.flush();
 		}
 	}
-	precacheStickers();
 	
 	return;
 }
@@ -184,6 +180,7 @@ function spawnSprites(inst) {
 			dat.sprite.alpha = 1;
 			if (dat.sprite.anim != null) {
 				dat.sprite.anim.play('');
+				dat.sprite.anim.framerate = 25;
 			} else if (dat.sprite.animation != null) {
 				dat.sprite.animation.play('idle', true);
 			}
@@ -197,42 +194,6 @@ function spawnSprites(inst) {
 	}
 }
 
-function precacheStickers() {
-	var stickersPath:String = Paths.modFolders('images/transitionSwag/');
-	if (FileSystem.exists(stickersPath)) {
-		for (sub in FileSystem.readDirectory(stickersPath)) {
-			var jsonPath = stickersPath + sub + '/stickers.json';
-			if (FileSystem.exists(jsonPath)) {
-				var content = File.getContent(jsonPath);
-				var json = JSON.parse(content);
-				var stickers = json.stickers;
-				for (sticker in Reflect.fields(stickers)) {
-					var images = Reflect.field(stickers, sticker);
-					if (images == null) continue;
-					for (image in images) { //jesus
-						var sticky:String = 'transitionSwag/' + sub + '/' + image;
-						stickerImages.push(sticky);
-						Paths.image(sticky);
-					}
-				}
-			}
-		}
-	}
-	var soundsPath:String = Paths.modFolders('sounds/stickersounds/');
-	if (FileSystem.exists(soundsPath)) {
-		for (sub in FileSystem.readDirectory(soundsPath)) {
-			if (FileSystem.isDirectory(soundsPath + sub)) {
-				for (snd in FileSystem.readDirectory(soundsPath + sub)) {
-					var soundPath:String = 'stickersounds/' + sub + '/' + snd;
-					var dot = soundPath.lastIndexOf('.');
-					soundPath = soundPath.substring(0, dot < 0 ? soundPath.length : dot);
-					var sound = Paths.sound(soundPath);
-					if (sound != null) stickerSounds.push(sound);
-				}
-			}
-		}
-	}
-}
 function goodNoteHit(note) {
 	if (!note.hitCausesMiss && !note.isSustainNote) totalHits += 1;
 	maxCombo = Math.max(maxCombo, game.combo);
@@ -286,74 +247,6 @@ function onEndSong() {
 	return Function_Stop;
 }
 
-function stickers(inst) {
-	stickerCam = new FlxCamera(); //this game sucks
-	stickerCam.bgColor = 0;
-	FlxG.cameras.add(stickerCam, false);
-	
-	var grpStickers = new FlxTypedSpriteGroup();
-	grpStickers.cameras = [stickerCam];
-	grpStickers.scrollFactor.set();
-	
-	var xPos:Float = -100;
-	var yPos:Float = -100;
-	while (xPos <= FlxG.width + 100) {
-		var randomSticky:String = stickerImages[FlxG.random.int(0, stickerImages.length - 1)];
-		var stickerSprite:FlxSprite = new FlxSprite(xPos, yPos).loadGraphic(Paths.image(randomSticky));
-		//stickerSprite.origin.set(stickerSprite.frameWidth * .5, stickerSprite.frameHeight * .5);
-		stickerSprite.visible = false;
-		stickerSprite.antialiasing = ClientPrefs.data.antialiasing;
-		stickerSprite.angle = FlxG.random.int(-60, 70);
-		grpStickers.add(stickerSprite);
-		
-		xPos += Math.max(stickerSprite.frameWidth * .5, 50);
-		if (xPos >= FlxG.width + 100) {
-			if (yPos <= FlxG.height + 100) {
-				xPos = -100;
-				yPos += FlxG.random.float(70, 120);
-			}
-		}
-	}
-	shuffleArray(grpStickers.members);
-	if (grpStickers == null) return;
-	var i:Int = 0;
-	for (sticker in grpStickers.members) {
-		var timing = FlxMath.remapToRange(i, 0, grpStickers.members.length, 0, 0.9);
-		var isLast:Bool = (i >= grpStickers.members.length - 1);
-		new FlxTimer().start(timing, () -> {
-			if (stickerSounds.length > 0)
-				FlxG.sound.play(stickerSounds[FlxG.random.int(0, stickerSounds.length - 1)]);
-			sticker.visible = true;
-			var frameTimer:Int = (isLast ? 2 : FlxG.random.int(0, 2));
-			new FlxTimer().start((1 / 24) * frameTimer, () -> {
-				sticker.scale.x = sticker.scale.y = FlxG.random.float(0.97, 1.02);
-				if (isLast)
-					new FlxTimer().start(.5, () -> resultsClose(inst));
-			});
-		});
-		i += 1;
-	}
-	if (grpStickers.length < 1) {
-		new FlxTimer().start(.5, () -> resultsClose(inst));
-		return;
-	}
-	inst.add(grpStickers);
-	var lastOne = grpStickers.members[grpStickers.members.length - 1];
-	if (lastOne != null) { // original script by emi3
-		lastOne.updateHitbox();
-		lastOne.screenCenter();
-		lastOne.angle = 0;
-	}
-}
-function shuffleArray(array) {
-	var maxValidIndex = array.length - 1;
-	for (i in 0...maxValidIndex) {
-		var j = FlxG.random.int(i, maxValidIndex);
-		var tmp = array[i];
-		array[i] = array[j];
-		array[j] = tmp;
-	}
-}
 var prevRating:Int = -1;
 var scrollV:FlxBackdrop;
 var scrollHA:FlxTypedSpriteGroup;
@@ -773,7 +666,8 @@ function resultsScreen(inst) {
 		}));
 	}));
 	
-	//stickers(inst);
+	if (DiscordClient != null && game.autoUpdateRPC)
+		DiscordClient.changePresence('Results Screen - ' + game.detailsText, PlayState.SONG.song + ' (' + game.storyDifficultyText + ')', iconP2.getCharacter());
 }
 function tallyDumb(tally, e) {
 	var tallied = updateTally(tally, e * 1000, e * 4);
@@ -800,31 +694,17 @@ function resultsClose(inst) {
 		t.cancel();
 		t.destroy();
 	}
-	CustomSubstate.closeCustomSubstate();
 	
 	grpInfoTexts = null;
 	resultsSprites = [];
-	
 	resultsActive = false;
+	
 	game.paused = true;
 	game.vocals.volume = 0;
 	FlxTween.tween(FlxG.sound.music, {volume: 0}, 0.8);
 	FlxTween.tween(FlxG.sound.music, {pitch: 3}, 0.1, {onComplete: () -> {
 		FlxTween.tween(FlxG.sound.music, {pitch: 0.5}, 0.4);
 	}});
-	
-	var fade:FlxSprite = new FlxSprite(FlxG.width * .5, FlxG.height * .5).makeGraphic(1, 1, 0xff000000);
-	fade.scale.set(FlxG.width * 2, FlxG.height * 2);
-	fade.cameras = [stickerCam];
-	fade.scrollFactor.set();
-	fade.alpha = 0;
-	game.add(fade);
-	FlxTween.tween(fade, {alpha: 1}, .25, {ease: FlxEase.expoOut});
-	FlxTween.tween(Main.fpsVar, {alpha: 0}, .25, {ease: FlxEase.sineOut, startDelay: .5});
-	new FlxTimer().start(.75, () -> {
-		FlxTransitionableState.skipNextTransIn = true;
-		MusicBeatState.switchState(PlayState.isStoryMode ? new StoryMenuState() : new FreeplayState());
-	});
 }
 function onDestroy() {
 	if (shownResults) {
@@ -863,8 +743,8 @@ function resultsUpdate(inst, e) {
 	}
 	var close:Bool = game.controls.ACCEPT || game.controls.BACK || (FlxG.android != null && FlxG.android.justReleased.BACK);
 	if (close) {
-		stickers(game);
-		resultsActive = false;
+		game.callOnHScript('startStickerTransition', [() -> FlxG.switchState(PlayState.isStoryMode ? newStoryMenuState() : new FreeplayState())]);
+		resultsClose(game);
 	}
 	tallyDumb(currentTally, e);
 }
@@ -940,8 +820,10 @@ function createAlphabet(group, x, y, text) {
 			letter.animation.play('letter');
 			letter.angle = angle;
 			group.add(letter);
+			i += 1;
+		} else if (c == ' ') {
+			i += 1;
 		}
-		i += 1;
 	}
 }
 function createRatingNums(group, x, y, rating) {

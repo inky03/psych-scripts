@@ -76,7 +76,7 @@ function onGhostTap(k) {
 	if (!ghost) {
 		FlxG.sound.play(Paths.soundRandom('missnote', 1, 3), FlxG.random.float(0.1, 0.2));
 		game.boyfriend.playAnim(game.singAnimations[k] + 'miss', true);
-		game.health -= c_GHOST_MISS_PENALTY * game.healthLoss;
+		game.health -= c_MISS_PENALTY * game.healthLoss;
 		game.songScore -= 10;
 		game.RecalculateRating(true);
 		game.callOnScripts('noteMissPress', [k]);
@@ -84,6 +84,8 @@ function onGhostTap(k) {
 			game.combo = 0;
 			game.songMisses ++;
 		}
+		
+		game.stagesFunc(function(stage:BaseStage) stage.noteMissPress());
 	}
 }
 function onSpawnNote(note)
@@ -93,8 +95,8 @@ function noteMiss(note) {
 	if (!note.hitCausesMiss || note.hitsound == 'hitsound') FlxG.sound.play(Paths.soundRandom('missnote', 1, 3), FlxG.random.float(0.5, 0.6));
 	if (!note.isSustainNote && usePBOT) {
 		var sub:Float = (note != null ? note.missHealth : .05);
+		game.health -= c_MISS_PENALTY * game.healthLoss;
 		game.health += sub * game.healthLoss;
-		game.health -= c_MISS_PENALTY;
 	}
 	return;
 }
