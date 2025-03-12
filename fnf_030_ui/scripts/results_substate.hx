@@ -743,7 +743,7 @@ function resultsUpdate(inst, e) {
 	}
 	var close:Bool = game.controls.ACCEPT || game.controls.BACK || (FlxG.android != null && FlxG.android.justReleased.BACK);
 	if (close) {
-		game.callOnHScript('startStickerTransition', [() -> FlxG.switchState(PlayState.isStoryMode ? newStoryMenuState() : new FreeplayState())]);
+		game.callOnHScript('startStickerTransition', [() -> FlxG.switchState(PlayState.isStoryMode ? new StoryMenuState() : new FreeplayState())]);
 		resultsClose(game);
 	}
 	tallyDumb(currentTally, e);
